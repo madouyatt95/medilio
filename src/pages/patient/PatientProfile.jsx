@@ -48,11 +48,13 @@ export default function PatientProfile() {
       </div>
 
       <div className="profile-section">
-        <div className="profile-section-title">
-          <User size={18} /> Informations personnelles
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <div className="profile-section-title" style={{ margin: 0 }}>
+            <User size={18} /> Informations personnelles
+          </div>
+          <button className={`btn btn-sm ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`}
             onClick={() => editing ? handleSave() : setEditing(true)}>
-            {editing ? <><Save size={14} /> Sauvegarder</> : 'Modifier'}
+            {editing ? <><Save size={14} /> Sauver</> : 'Modifier'}
           </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

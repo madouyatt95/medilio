@@ -12,6 +12,38 @@ import { formatRelative, formatDate } from './utils/dateUtils';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from './utils/constants';
 import missionService from './services/missionService';
 
+// ── Error Boundary ──
+import React from 'react';
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ error, errorInfo });
+    console.error("ErrorBoundary caught error", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', background: 'white', color: 'red', minHeight: '100vh', wordBreak: 'break-all' }}>
+          <h2>CRASH DETECTED</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }}>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo?.componentStack}
+          </details>
+        </div>
+      );
+    }
+    return this.props.children; 
+  }
+}
+
+
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -265,7 +297,8 @@ function AppContent() {
     <>
       <Header />
       <ToastContainer />
-      <Routes>
+      <ErrorBoundary>
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -294,7 +327,8 @@ function AppContent() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </ErrorBoundary>
       <BottomNav />
     </>
   );
