@@ -1,65 +1,103 @@
-// ── Rating Service ──
-import { v4 as uuidv4 } from 'uuid';
-import storageService from './storageService';
-
-const RATINGS_KEY = 'medilio_ratings';
+// ── Rating Service (Supabase) ──
+import supabase from '../lib/supabase';
 
 export const ratingService = {
-  getAll() {
-    return storageService.get(RATINGS_KEY) || [];
-  },
+  async create({ missionId, patientId, proId, score, comment }) {
+    const { data, error } = await supabase
+      .from('ratings')
+      .insert({
+        mission_id: missionId,
+        patient_id: patientId,
+        pro_id: proId,
+        score,
+        comment: comment || '',
+      })
+      .select()
+      .single();
 
-  save(ratings) {
-    storageService.set(RATINGS_KEY, ratings);
-  },
-
-  create({ missionId, patientId, proId, score, comment }) {
-    const ratings = this.getAll();
-    // Check if already rated
-    if (ratings.find(r => r.missionId === missionId && r.patientId === patientId)) {
-      throw new Error('Vous avez déjà noté cette mission');
+    if (error) {
+      if (error.code === '23505') throw new Error('Vous avez déjà noté cette mission');
+      throw new Error(error.message);
     }
-    const rating = {
-      id: uuidv4(),
-      missionId,
-      patientId,
-      proId,
-      score, // 1-5
-      comment: comment || '',
-      createdAt: new Date().toISOString(),
+
+    return {
+      id: data.id,
+      missionId: data.mission_id,
+      patientId: data.patient_id,
+      proId: data.pro_id,
+      score: data.score,
+      comment: data.comment,
+      createdAt: data.created_at,
     };
-    ratings.push(rating);
-    this.save(ratings);
-    return rating;
   },
 
-  getByPro(proId) {
-    return this.getAll().filter(r => r.proId === proId);
+  async getByPro(proId) {
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('*')
+      .eq('pro_id', proId)
+      .order('created_at', { ascending: false });
+
+    if (error) return [];
+    return (data || []).map(r => ({
+      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+    }));
   },
 
-  getByMission(missionId) {
-    return this.getAll().find(r => r.missionId === missionId) || null;
+  async getByMission(missionId) {
+    const { data } = await supabase
+      .from('ratings')
+      .select('*')
+      .eq('mission_id', missionId)
+      .single();
+
+    if (!data) return null;
+    return {
+      id: data.id, missionId: data.mission_id, patientId: data.patient_id,
+      proId: data.pro_id, score: data.score, comment: data.comment, createdAt: data.created_at,
+    };
   },
 
-  getByPatient(patientId) {
-    return this.getAll().filter(r => r.patientId === patientId);
+  async getByPatient(patientId) {
+    const { data } = await supabase
+      .from('ratings')
+      .select('*')
+      .eq('patient_id', patientId);
+
+    return (data || []).map(r => ({
+      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+    }));
   },
 
-  getProAverageRating(proId) {
-    const ratings = this.getByPro(proId);
+  async getProAverageRating(proId) {
+    const ratings = await this.getByPro(proId);
     if (ratings.length === 0) return { average: 0, count: 0 };
     const sum = ratings.reduce((s, r) => s + r.score, 0);
     return { average: Math.round((sum / ratings.length) * 10) / 10, count: ratings.length };
   },
 
-  getAllProRatings() {
-    const ratings = this.getAll();
+  async getAllProRatings() {
+    const { data } = await supabase.from('ratings').select('*');
     const proMap = {};
-    ratings.forEach(r => {
-      if (!proMap[r.proId]) proMap[r.proId] = [];
-      proMap[r.proId].push(r);
+    (data || []).forEach(r => {
+      const mapped = {
+        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+      };
+      if (!proMap[r.pro_id]) proMap[r.pro_id] = [];
+      proMap[r.pro_id].push(mapped);
     });
     return proMap;
+  },
+
+  async getAll() {
+    const { data } = await supabase.from('ratings').select('*');
+    return (data || []).map(r => ({
+      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+    }));
   },
 };
 

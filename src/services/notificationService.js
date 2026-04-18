@@ -1,10 +1,25 @@
-// ── Notification Service ──
+// ── Notification Service (Local + Supabase-aware) ──
+// Notifications remain in localStorage for now (ephemeral, per-session)
+// Can be migrated to a Supabase table later for persistence across devices
 import { v4 as uuidv4 } from 'uuid';
-import storageService from './storageService';
+
+const NOTIF_KEY = 'medilio_notifications';
+
+function getAll() {
+  try {
+    return JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveAll(notifs) {
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(notifs));
+}
 
 export const notificationService = {
   create({ userId, type, title, message, link = '' }) {
-    const notifications = storageService.getNotifications();
+    const notifications = getAll();
     const notification = {
       id: uuidv4(),
       userId,
@@ -16,38 +31,38 @@ export const notificationService = {
       createdAt: new Date().toISOString(),
     };
     notifications.unshift(notification);
-    storageService.setNotifications(notifications);
+    saveAll(notifications);
     return notification;
   },
 
   getByUser(userId) {
-    return storageService.getNotifications().filter(n => n.userId === userId);
+    return getAll().filter(n => n.userId === userId);
   },
 
   getUnreadCount(userId) {
-    return storageService.getNotifications().filter(n => n.userId === userId && !n.read).length;
+    return getAll().filter(n => n.userId === userId && !n.read).length;
   },
 
   markAsRead(notificationId) {
-    const notifications = storageService.getNotifications();
+    const notifications = getAll();
     const index = notifications.findIndex(n => n.id === notificationId);
     if (index !== -1) {
       notifications[index].read = true;
-      storageService.setNotifications(notifications);
+      saveAll(notifications);
     }
   },
 
   markAllAsRead(userId) {
-    const notifications = storageService.getNotifications();
+    const notifications = getAll();
     notifications.forEach(n => {
       if (n.userId === userId) n.read = true;
     });
-    storageService.setNotifications(notifications);
+    saveAll(notifications);
   },
 
   delete(notificationId) {
-    const notifs = storageService.getNotifications().filter(n => n.id !== notificationId);
-    storageService.setNotifications(notifs);
+    const notifs = getAll().filter(n => n.id !== notificationId);
+    saveAll(notifs);
   },
 };
 

@@ -27,8 +27,11 @@ export default function MissionRadar() {
   const [showApplyModal, setShowApplyModal] = useState(false);
 
   useEffect(() => {
-    const open = missionService.getOpenMissions();
-    setMissions(open);
+    async function load() {
+      const open = await missionService.getOpenMissions();
+      setMissions(open);
+    }
+    load();
   }, []);
 
   useEffect(() => {
@@ -51,10 +54,11 @@ export default function MissionRadar() {
     setShowApplyModal(true);
   };
 
-  const submitApply = () => {
+  const submitApply = async () => {
     try {
-      missionService.applyToMission(applyingId, user.id, applyMessage);
-      setMissions(missionService.getOpenMissions());
+      await missionService.applyToMission(applyingId, user.id, applyMessage);
+      const updated = await missionService.getOpenMissions();
+      setMissions(updated);
       showToast('Candidature envoyée !', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -62,11 +66,7 @@ export default function MissionRadar() {
     setShowApplyModal(false);
   };
 
-  const getPatientName = (patientId) => {
-    const users = authService.getAllUsers();
-    const p = users.find(u => u.id === patientId);
-    return p ? `${p.firstName} ${p.lastName}` : 'Patient';
-  };
+  // Patient name no longer needed in this view (was unused in JSX)
 
   return (
     <div className="page-container">

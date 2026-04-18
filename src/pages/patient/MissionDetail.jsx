@@ -25,79 +25,94 @@ export default function PatientMissionDetail() {
   const [showRating, setShowRating] = useState(false);
   const [existingRating, setExistingRating] = useState(null);
   const [favorites, setFavorites] = useState({});
+  const [proRatings, setProRatings] = useState({});
 
   useEffect(() => {
-    const m = missionService.getById(id);
-    if (!m) return navigate('/patient/dashboard');
-    setMission(m);
-    const allUsers = authService.getAllUsers();
-    const userMap = {};
-    allUsers.forEach(u => { userMap[u.id] = u; });
-    setApplicantUsers(userMap);
+    async function loadData() {
+      const m = await missionService.getById(id);
+      if (!m) return navigate('/patient/dashboard');
+      setMission(m);
 
-    // Check rating
-    const rating = ratingService.getByMission(id);
-    setExistingRating(rating);
+      const allUsers = await authService.getAllUsers();
+      const userMap = {};
+      allUsers.forEach(u => { userMap[u.id] = u; });
+      setApplicantUsers(userMap);
 
-    // Load favorites
-    if (user) {
-      const favIds = favoritesService.getFavoriteProIds(user.id);
-      const favMap = {};
-      favIds.forEach(id => { favMap[id] = true; });
-      setFavorites(favMap);
+      // Check rating
+      const rating = await ratingService.getByMission(id);
+      setExistingRating(rating);
+
+      // Load pro ratings for applicants
+      const rMap = {};
+      for (const app of (m.applicants || [])) {
+        rMap[app.proId] = await ratingService.getProAverageRating(app.proId);
+      }
+      if (m.assignedProId) {
+        rMap[m.assignedProId] = await ratingService.getProAverageRating(m.assignedProId);
+      }
+      setProRatings(rMap);
+
+      // Load favorites
+      if (user) {
+        const favIds = await favoritesService.getFavoriteProIds(user.id);
+        const favMap = {};
+        favIds.forEach(fid => { favMap[fid] = true; });
+        setFavorites(favMap);
+      }
     }
+    loadData();
   }, [id, navigate, user]);
 
   if (!mission) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
-  const handleAccept = (proId) => {
-    const updated = missionService.acceptApplicant(mission.id, proId);
+  const handleAccept = async (proId) => {
+    const updated = await missionService.acceptApplicant(mission.id, proId);
     setMission(updated);
     showToast('Professionnel accepté !', 'success');
   };
 
-  const handleReject = (proId) => {
-    const updated = missionService.rejectApplicant(mission.id, proId);
+  const handleReject = async (proId) => {
+    const updated = await missionService.rejectApplicant(mission.id, proId);
     setMission(updated);
     showToast('Candidature refusée', 'info');
   };
 
-  const handleComplete = () => {
-    const updated = missionService.updateStatus(mission.id, 'completed');
+  const handleComplete = async () => {
+    const updated = await missionService.updateStatus(mission.id, 'completed');
     setMission(updated);
     showToast('Mission marquée comme terminée !', 'success');
-    // Show rating modal after 500ms
     setTimeout(() => setShowRating(true), 500);
   };
 
-  const handleCancel = () => {
-    const updated = missionService.updateStatus(mission.id, 'cancelled');
+  const handleCancel = async () => {
+    const updated = await missionService.updateStatus(mission.id, 'cancelled');
     setMission(updated);
     showToast('Mission annulée', 'warning');
   };
 
-  const handleRate = ({ score, comment }) => {
-    ratingService.create({
+  const handleRate = async ({ score, comment }) => {
+    await ratingService.create({
       missionId: mission.id,
       patientId: user.id,
       proId: mission.assignedProId,
       score, comment,
     });
-    setExistingRating(ratingService.getByMission(mission.id));
+    const r = await ratingService.getByMission(mission.id);
+    setExistingRating(r);
     setShowRating(false);
     showToast('Merci pour votre évaluation !', 'success');
   };
 
-  const toggleFavorite = (proId) => {
-    const added = favoritesService.toggle(user.id, proId);
+  const toggleFavorite = async (proId) => {
+    const added = await favoritesService.toggle(user.id, proId);
     setFavorites(prev => ({ ...prev, [proId]: added }));
     showToast(added ? 'Ajouté aux favoris ❤️' : 'Retiré des favoris', 'info');
   };
 
   const assignedPro = mission.assignedProId ? applicantUsers[mission.assignedProId] : null;
-  const proRating = assignedPro ? ratingService.getProAverageRating(assignedPro.id) : null;
+  const proRating = assignedPro ? proRatings[assignedPro.id] : null;
 
   return (
     <div className="page-container">
@@ -233,7 +248,7 @@ export default function PatientMissionDetail() {
           {mission.applicants.map(app => {
             const pro = applicantUsers[app.proId];
             if (!pro) return null;
-            const proR = ratingService.getProAverageRating(app.proId);
+            const proR = proRatings[app.proId] || { average: 0, count: 0 };
             return (
               <div key={app.proId} className="applicant-card">
                 <div className="avatar">{pro.firstName?.[0]}{pro.lastName?.[0]}</div>

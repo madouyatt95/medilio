@@ -29,8 +29,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ChatPage from './pages/ChatPage';
 import CalendarPage from './pages/CalendarPage';
 
-// Seed demo data on first load
-seedDemoData();
+// (Demo data disabled for Supabase usage)
 
 // ── Protected Route ──
 function ProtectedRoute({ children, allowedRoles }) {
@@ -209,7 +208,10 @@ function PatientMissions() {
   const [tab, setTab] = useState('all');
 
   useEffect(() => {
-    if (user) setMissions(missionService.getByPatient(user.id));
+    async function load() {
+      if (user) setMissions(await missionService.getByPatient(user.id));
+    }
+    load();
   }, [user]);
 
   const filtered = tab === 'all' ? missions

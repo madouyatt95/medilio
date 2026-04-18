@@ -17,12 +17,15 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
-    if (!user) return;
-    if (user.role === 'patient') {
-      setMissions(missionService.getByPatient(user.id));
-    } else if (user.role === 'professional') {
-      setMissions(missionService.getByProfessional(user.id));
+    async function load() {
+      if (!user) return;
+      if (user.role === 'patient') {
+        setMissions(await missionService.getByPatient(user.id));
+      } else if (user.role === 'professional') {
+        setMissions(await missionService.getByProfessional(user.id));
+      }
     }
+    load();
   }, [user]);
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;

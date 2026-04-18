@@ -20,10 +20,30 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [missions, setMissions] = useState([]);
   const [showVerifyModal, setShowVerifyModal] = useState(null);
+  const [ratings, setRatings] = useState([]);
+  const [proRatings, setProRatings] = useState({});
 
   useEffect(() => {
-    setUsers(authService.getAllUsers());
-    setMissions(missionService.getAll());
+    async function load() {
+      const dbUsers = await authService.getAllUsers();
+      const dbMissions = await missionService.getAll();
+      const dbRatings = await ratingService.getAll();
+      const dbProRatings = await ratingService.getAllProRatings();
+
+      setUsers(dbUsers);
+      setMissions(dbMissions);
+      setRatings(dbRatings);
+
+      const pAverages = {};
+      for (const [proId, rs] of Object.entries(dbProRatings)) {
+        if (rs && rs.length > 0) {
+          const sum = rs.reduce((acc, r) => acc + r.score, 0);
+          pAverages[proId] = { average: Math.round((sum / rs.length) * 10) / 10, count: rs.length };
+        }
+      }
+      setProRatings(pAverages);
+    }
+    load();
   }, []);
 
   const patients = users.filter(u => u.role === 'patient');
@@ -35,23 +55,23 @@ export default function AdminDashboard() {
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
-  const handleToggleUser = (userId) => {
-    authService.toggleUserStatus(userId);
-    setUsers(authService.getAllUsers());
+  const handleToggleUser = async (userId) => {
+    await authService.toggleUserStatus(userId);
+    setUsers(await authService.getAllUsers());
   };
 
-  const handleDeleteMission = (missionId) => {
-    missionService.delete(missionId);
-    setMissions(missionService.getAll());
+  const handleDeleteMission = async (missionId) => {
+    await missionService.delete(missionId);
+    setMissions(await missionService.getAll());
   };
 
-  const handleVerifyPro = (userId) => {
+  const handleVerifyPro = async (userId) => {
     const u = users.find(u => u.id === userId);
     if (u?.professionalInfo) {
-      authService.updateProfile(userId, {
+      await authService.updateProfile(userId, {
         professionalInfo: { ...u.professionalInfo, verified: !u.professionalInfo.verified }
       });
-      setUsers(authService.getAllUsers());
+      setUsers(await authService.getAllUsers());
     }
     setShowVerifyModal(null);
   };
@@ -332,7 +352,7 @@ export default function AdminDashboard() {
               <div className="stat-card-label">Candidatures/mission</div>
             </div>
             <div className="stat-card">
-              <div className="stat-card-value">{ratingService.getAll().length}</div>
+              <div className="stat-card-value">{ratings.length}</div>
               <div className="stat-card-label">Avis déposés</div>
             </div>
           </div>
@@ -368,7 +388,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {users.map(u => {
-                    const proR = u.role === 'professional' ? ratingService.getProAverageRating(u.id) : null;
+                    const proR = u.role === 'professional' ? proRatings[u.id] : null;
                     return (
                       <tr key={u.id}>
                         <td>
@@ -468,7 +488,7 @@ export default function AdminDashboard() {
               </div>
             ) : (
               pros.filter(p => !p.professionalInfo?.verified).map(pro => {
-                const proR = ratingService.getProAverageRating(pro.id);
+                const proR = proRatings[pro.id] || { average: 0, count: 0 };
                 return (
                   <div key={pro.id} className="card" style={{
                     display: 'flex', gap: 'var(--space-4)', padding: 'var(--space-5)',
@@ -517,7 +537,7 @@ export default function AdminDashboard() {
           <div className="section">
             <div className="section-title">Professionnels vérifiés ({verifiedPros.length})</div>
             {verifiedPros.map(pro => {
-              const proR = ratingService.getProAverageRating(pro.id);
+              const proR = proRatings[pro.id] || { average: 0, count: 0 };
               return (
                 <div key={pro.id} className="card" style={{
                   display: 'flex', alignItems: 'center', gap: 'var(--space-3)',

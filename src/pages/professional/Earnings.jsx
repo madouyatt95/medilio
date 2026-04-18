@@ -16,10 +16,13 @@ export default function Earnings() {
   const [missions, setMissions] = useState([]);
 
   useEffect(() => {
-    if (user) {
-      const myMissions = missionService.getByProfessional(user.id);
-      setMissions(myMissions.filter(m => m.status === 'completed'));
+    async function load() {
+      if (user) {
+        const myMissions = await missionService.getByProfessional(user.id);
+        setMissions(myMissions.filter(m => m.status === 'completed'));
+      }
     }
+    load();
   }, [user]);
 
   const totalEarnings = missions.reduce((sum, m) => sum + (Number(m.estimatedCost) || 0), 0);

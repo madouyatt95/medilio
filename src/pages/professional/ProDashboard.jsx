@@ -17,11 +17,15 @@ export default function ProDashboard() {
   const [openCount, setOpenCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      setMyMissions(missionService.getByProfessional(user.id));
-      const open = missionService.getOpenMissions();
-      setOpenCount(open.length);
+    async function loadData() {
+      if (user) {
+        const my = await missionService.getByProfessional(user.id);
+        setMyMissions(my);
+        const open = await missionService.getOpenMissions();
+        setOpenCount(open.length);
+      }
     }
+    loadData();
   }, [user]);
 
   const assignedMissions = myMissions.filter(m => m.status === 'assigned' || m.status === 'in_progress');

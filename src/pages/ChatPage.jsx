@@ -21,26 +21,33 @@ export default function ChatPage() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    const m = missionService.getById(missionId);
-    if (!m) return navigate(-1);
-    setMission(m);
+    async function loadData() {
+      const m = await missionService.getById(missionId);
+      if (!m) return navigate(-1);
+      setMission(m);
 
-    const allUsers = authService.getAllUsers();
-    const otherId = user.role === 'patient' ? m.assignedProId : m.patientId;
-    setOtherUser(allUsers.find(u => u.id === otherId));
+      const allUsers = await authService.getAllUsers();
+      const otherId = user.role === 'patient' ? m.assignedProId : m.patientId;
+      setOtherUser(allUsers.find(u => u.id === otherId));
 
-    setMessages(chatService.getMessages(missionId));
-    chatService.markAsRead(missionId, user.id);
+      const initialMessages = await chatService.getMessages(missionId);
+      setMessages(initialMessages);
+      await chatService.markAsRead(missionId, user.id);
+    }
+    loadData();
+
+    // Polling or listener should be added here
   }, [missionId, user, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
-    chatService.sendMessage(missionId, user.id, `${user.firstName} ${user.lastName}`, input.trim());
-    setMessages(chatService.getMessages(missionId));
+    await chatService.sendMessage(missionId, user.id, `${user.firstName} ${user.lastName}`, input.trim());
+    const updatedMessages = await chatService.getMessages(missionId);
+    setMessages(updatedMessages);
     setInput('');
     inputRef.current?.focus();
   };

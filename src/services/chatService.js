@@ -1,89 +1,114 @@
-// ── Chat Service ──
-import { v4 as uuidv4 } from 'uuid';
-import storageService from './storageService';
-
-const CHATS_KEY = 'medilio_chats';
+// ── Chat Service (Supabase) ──
+import supabase from '../lib/supabase';
 
 export const chatService = {
-  getAll() {
-    return storageService.get(CHATS_KEY) || [];
-  },
-
-  save(chats) {
-    storageService.set(CHATS_KEY, chats);
-  },
-
   // Get or create a conversation for a mission
-  getConversation(missionId) {
-    const chats = this.getAll();
-    let convo = chats.find(c => c.missionId === missionId);
-    if (!convo) {
-      convo = {
-        id: uuidv4(),
-        missionId,
-        messages: [],
-        createdAt: new Date().toISOString(),
-      };
-      chats.push(convo);
-      this.save(chats);
-    }
-    return convo;
-  },
+  async getConversation(missionId) {
+    // Try to find existing chat
+    let { data: chat } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('mission_id', missionId)
+      .single();
 
-  sendMessage(missionId, senderId, senderName, content) {
-    const chats = this.getAll();
-    let convoIndex = chats.findIndex(c => c.missionId === missionId);
-    if (convoIndex === -1) {
-      chats.push({
-        id: uuidv4(),
-        missionId,
-        messages: [],
-        createdAt: new Date().toISOString(),
-      });
-      convoIndex = chats.length - 1;
+    if (!chat) {
+      // Create one
+      const { data: newChat, error } = await supabase
+        .from('chats')
+        .insert({ mission_id: missionId })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      chat = newChat;
     }
-    const message = {
-      id: uuidv4(),
-      senderId,
-      senderName,
-      content,
-      createdAt: new Date().toISOString(),
-      read: false,
+
+    // Fetch messages
+    const { data: messages } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('chat_id', chat.id)
+      .order('created_at', { ascending: true });
+
+    return {
+      id: chat.id,
+      missionId: chat.mission_id,
+      messages: (messages || []).map(m => ({
+        id: m.id,
+        senderId: m.sender_id,
+        senderName: m.sender_name,
+        content: m.content,
+        createdAt: m.created_at,
+        read: m.read,
+      })),
+      createdAt: chat.created_at,
     };
-    chats[convoIndex].messages.push(message);
-    this.save(chats);
-    return message;
   },
 
-  getMessages(missionId) {
-    const convo = this.getConversation(missionId);
-    return convo.messages || [];
+  async sendMessage(missionId, senderId, senderName, content) {
+    // Get or create the chat
+    const convo = await this.getConversation(missionId);
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        chat_id: convo.id,
+        sender_id: senderId,
+        sender_name: senderName,
+        content,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      senderId: data.sender_id,
+      senderName: data.sender_name,
+      content: data.content,
+      createdAt: data.created_at,
+      read: data.read,
+    };
   },
 
-  markAsRead(missionId, userId) {
-    const chats = this.getAll();
-    const convoIndex = chats.findIndex(c => c.missionId === missionId);
-    if (convoIndex === -1) return;
-    chats[convoIndex].messages.forEach(m => {
-      if (m.senderId !== userId) m.read = true;
-    });
-    this.save(chats);
+  async getMessages(missionId) {
+    const convo = await this.getConversation(missionId);
+    return convo.messages;
   },
 
-  getUnreadCount(missionId, userId) {
-    const convo = this.getConversation(missionId);
+  async markAsRead(missionId, userId) {
+    const convo = await this.getConversation(missionId);
+
+    // Mark all messages NOT sent by this user as read
+    const unreadIds = convo.messages
+      .filter(m => m.senderId !== userId && !m.read)
+      .map(m => m.id);
+
+    if (unreadIds.length > 0) {
+      await supabase
+        .from('chat_messages')
+        .update({ read: true })
+        .in('id', unreadIds);
+    }
+  },
+
+  async getUnreadCount(missionId, userId) {
+    const convo = await this.getConversation(missionId);
     return convo.messages.filter(m => m.senderId !== userId && !m.read).length;
   },
 
-  getUserConversations(userId, missions) {
-    // Get all conversations for missions this user is part of
-    return missions
-      .map(m => {
-        const convo = this.getConversation(m.id);
-        const unread = convo.messages.filter(msg => msg.senderId !== userId && !msg.read).length;
-        const lastMessage = convo.messages[convo.messages.length - 1] || null;
-        return { ...convo, mission: m, unreadCount: unread, lastMessage };
-      })
+  async getUserConversations(userId, missions) {
+    const results = [];
+
+    for (const m of missions) {
+      const convo = await this.getConversation(m.id);
+      const unread = convo.messages.filter(msg => msg.senderId !== userId && !msg.read).length;
+      const lastMessage = convo.messages[convo.messages.length - 1] || null;
+      results.push({ ...convo, mission: m, unreadCount: unread, lastMessage });
+    }
+
+    return results
       .filter(c => c.messages.length > 0 || c.mission.assignedProId)
       .sort((a, b) => {
         const aTime = a.lastMessage?.createdAt || a.createdAt;

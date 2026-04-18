@@ -66,13 +66,17 @@ export default function CreateMission() {
     return true;
   };
 
-  const handleSubmit = () => {
-    const mission = missionService.create({
-      ...form,
-      patientId: user.id,
-    });
-    showToast('Mission créée avec succès !', 'success');
-    navigate(`/patient/mission/${mission.id}`);
+  const handleSubmit = async () => {
+    try {
+      const mission = await missionService.create({
+        ...form,
+        patientId: user.id,
+      });
+      showToast('Mission créée avec succès !', 'success');
+      navigate(`/patient/mission/${mission.id}`);
+    } catch (err) {
+      showToast(err.message || 'Erreur lors de la création', 'error');
+    }
   };
 
   const getCareLabel = (id) => CARE_TYPES.find(c => c.id === id)?.label || id;

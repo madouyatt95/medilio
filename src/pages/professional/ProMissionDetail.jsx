@@ -20,11 +20,20 @@ export default function ProMissionDetail() {
   const [mission, setMission] = useState(null);
   const [noteContent, setNoteContent] = useState('');
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [patient, setPatient] = useState(null);
 
   useEffect(() => {
-    const m = missionService.getById(id);
-    if (!m) return navigate('/pro/dashboard');
-    setMission(m);
+    async function loadData() {
+      const m = await missionService.getById(id);
+      if (!m) return navigate('/pro/dashboard');
+      setMission(m);
+
+      // Load patient info
+      const allUsers = await authService.getAllUsers();
+      const p = allUsers.find(u => u.id === m.patientId);
+      setPatient(p || null);
+    }
+    loadData();
   }, [id, navigate]);
 
   if (!mission) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
@@ -32,22 +41,15 @@ export default function ProMissionDetail() {
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
   const isAssigned = mission.assignedProId === user?.id;
 
-  const getPatientInfo = () => {
-    const users = authService.getAllUsers();
-    return users.find(u => u.id === mission.patientId);
-  };
-
-  const patient = getPatientInfo();
-
-  const handleComplete = () => {
-    const updated = missionService.updateStatus(mission.id, 'completed');
+  const handleComplete = async () => {
+    const updated = await missionService.updateStatus(mission.id, 'completed');
     setMission(updated);
     showToast('Mission terminée !', 'success');
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!noteContent.trim()) return;
-    const updated = missionService.addCareNote(mission.id, user.id, noteContent);
+    const updated = await missionService.addCareNote(mission.id, user.id, noteContent);
     setMission(updated);
     setNoteContent('');
     setShowNoteForm(false);

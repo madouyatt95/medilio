@@ -29,10 +29,14 @@ export default function PatientProfile() {
     }
   };
 
-  const handleSave = () => {
-    updateProfile(form);
-    setEditing(false);
-    showToast('Profil mis à jour !', 'success');
+  const handleSave = async () => {
+    try {
+      await updateProfile(form);
+      setEditing(false);
+      showToast('Profil mis à jour !', 'success');
+    } catch (err) {
+      showToast(err.message || 'Erreur lors de la mise à jour', 'error');
+    }
   };
 
   return (

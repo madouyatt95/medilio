@@ -16,7 +16,13 @@ export default function PatientDashboard() {
   const [missions, setMissions] = useState([]);
 
   useEffect(() => {
-    if (user) setMissions(missionService.getByPatient(user.id));
+    async function loadMissions() {
+      if (user) {
+        const data = await missionService.getByPatient(user.id);
+        setMissions(data);
+      }
+    }
+    loadMissions();
   }, [user]);
 
   const openMissions = missions.filter(m => m.status === 'open');

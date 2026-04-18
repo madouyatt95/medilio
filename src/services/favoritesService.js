@@ -1,49 +1,52 @@
-// ── Favorites Service ──
-import storageService from './storageService';
-
-const FAVORITES_KEY = 'medilio_favorites';
+// ── Favorites Service (Supabase) ──
+import supabase from '../lib/supabase';
 
 export const favoritesService = {
-  getAll() {
-    return storageService.get(FAVORITES_KEY) || [];
+  async getByPatient(patientId) {
+    const { data } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('patient_id', patientId);
+
+    return (data || []).map(f => ({
+      patientId: f.patient_id,
+      proId: f.pro_id,
+      createdAt: f.created_at,
+    }));
   },
 
-  save(favorites) {
-    storageService.set(FAVORITES_KEY, favorites);
+  async isFavorite(patientId, proId) {
+    const { data } = await supabase
+      .from('favorites')
+      .select('patient_id')
+      .eq('patient_id', patientId)
+      .eq('pro_id', proId)
+      .single();
+
+    return !!data;
   },
 
-  // Get favorites for a patient
-  getByPatient(patientId) {
-    return this.getAll().filter(f => f.patientId === patientId);
-  },
+  async toggle(patientId, proId) {
+    const exists = await this.isFavorite(patientId, proId);
 
-  // Check if a pro is favorited
-  isFavorite(patientId, proId) {
-    return this.getAll().some(f => f.patientId === patientId && f.proId === proId);
-  },
-
-  // Toggle favorite
-  toggle(patientId, proId) {
-    const favorites = this.getAll();
-    const index = favorites.findIndex(f => f.patientId === patientId && f.proId === proId);
-    if (index !== -1) {
-      favorites.splice(index, 1);
-      this.save(favorites);
+    if (exists) {
+      await supabase
+        .from('favorites')
+        .delete()
+        .eq('patient_id', patientId)
+        .eq('pro_id', proId);
       return false; // removed
     } else {
-      favorites.push({
-        patientId,
-        proId,
-        createdAt: new Date().toISOString(),
-      });
-      this.save(favorites);
+      await supabase
+        .from('favorites')
+        .insert({ patient_id: patientId, pro_id: proId });
       return true; // added
     }
   },
 
-  // Get favorite pro IDs for a patient
-  getFavoriteProIds(patientId) {
-    return this.getByPatient(patientId).map(f => f.proId);
+  async getFavoriteProIds(patientId) {
+    const favs = await this.getByPatient(patientId);
+    return favs.map(f => f.proId);
   },
 };
 
