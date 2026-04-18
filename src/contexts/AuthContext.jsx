@@ -76,8 +76,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.warn("Logout error:", err);
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const updateProfile = useCallback(async (updates) => {
