@@ -101,10 +101,8 @@ export default function ProProfile() {
         marginLeft: 'calc(var(--content-padding) * -1)',
         marginRight: 'calc(var(--content-padding) * -1)',
         paddingTop: 'var(--space-16)',
-        paddingBottom: 'var(--space-12)',
-        paddingLeft: 'var(--content-padding)',
-        paddingRight: 'var(--content-padding)',
-        background: 'url(https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80) center/cover',
+        paddingBottom: 'var(--space-16)',
+        background: 'url(https://images.unsplash.com/photo-1551076805-e1869033e561?w=800&q=80) center/cover',
         position: 'relative',
         color: 'white',
         display: 'flex',
@@ -112,21 +110,18 @@ export default function ProProfile() {
         alignItems: 'center',
         textAlign: 'center'
       }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, #F0F4F8 100%)', zIndex: 1 }} />
-        
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="avatar avatar-xl" style={{ border: '4px solid white', boxShadow: 'var(--shadow-lg)', marginBottom: 'var(--space-3)', transform: 'translateY(20px)' }}>
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-        </div>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,255,255,1) 100%)', zIndex: 1 }} />
       </div>
 
-      <div style={{ position: 'relative', zIndex: 3, marginTop: '-20px', textAlign: 'center', paddingBottom: 'var(--space-4)' }}>
+      <div style={{ position: 'relative', zIndex: 3, marginTop: '-60px', textAlign: 'center', paddingBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="avatar avatar-xl" style={{ border: '4px solid white', boxShadow: 'var(--shadow-lg)', marginBottom: 'var(--space-3)', width: '100px', height: '100px', fontSize: '32px' }}>
+          {user?.firstName?.[0] || '?'}{user?.lastName?.[0] || ''}
+        </div>
         <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)' }}>
-          {user?.firstName} {user?.lastName}
+          {user?.firstName || 'Professionnel'} {user?.lastName || ''}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-          {form.professionalInfo.verified ? (
+          {form?.professionalInfo?.verified ? (
             <span className="badge" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)', border: '1px solid currentColor' }}>
               <Shield size={12} /> Vérifié
             </span>
@@ -152,23 +147,23 @@ export default function ProProfile() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
           <div className="form-group">
             <label className="form-label">Prénom</label>
-            <input className="form-input" value={form.firstName} disabled={!editing}
+            <input className="form-input" value={form?.firstName || ''} disabled={!editing}
               onChange={e => updateField('firstName', e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label">Nom</label>
-            <input className="form-input" value={form.lastName} disabled={!editing}
+            <input className="form-input" value={form?.lastName || ''} disabled={!editing}
               onChange={e => updateField('lastName', e.target.value)} />
           </div>
         </div>
         <div className="form-group" style={{ marginBottom: 'var(--space-3)' }}>
           <label className="form-label">Téléphone</label>
-          <input className="form-input" value={form.phone} disabled={!editing}
+          <input className="form-input" value={form?.phone || ''} disabled={!editing}
             onChange={e => updateField('phone', e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">Bio</label>
-          <textarea className="form-input form-textarea" value={form.professionalInfo.bio}
+          <textarea className="form-input form-textarea" value={form?.professionalInfo?.bio || ''}
             disabled={!editing} placeholder="Décrivez votre expérience..."
             onChange={e => updateField('professionalInfo.bio', e.target.value)} />
         </div>
@@ -178,15 +173,18 @@ export default function ProProfile() {
       <div className="profile-section">
         <div className="profile-section-title"><Stethoscope size={18} /> Spécialités</div>
         <div className="tags" style={{ gap: 'var(--space-2)' }}>
-          {SPECIALTIES.map(spec => (
-            <button key={spec}
-              className={`tag ${form.professionalInfo.specialties.includes(spec) ? 'tag-success' : ''}`}
-              onClick={() => editing && toggleSpecialty(spec)}
-              style={{ cursor: editing ? 'pointer' : 'default', opacity: editing && !form.professionalInfo.specialties.includes(spec) ? 0.5 : 1 }}>
-              {form.professionalInfo.specialties.includes(spec) && <CheckCircle size={12} />}
-              {spec}
-            </button>
-          ))}
+          {SPECIALTIES.map(spec => {
+            const isSelected = (form?.professionalInfo?.specialties || []).includes(spec);
+            return (
+              <button key={spec}
+                className={`tag ${isSelected ? 'tag-success' : ''}`}
+                onClick={() => editing && toggleSpecialty(spec)}
+                style={{ cursor: editing ? 'pointer' : 'default', opacity: editing && !isSelected ? 0.5 : 1 }}>
+                {isSelected && <CheckCircle size={12} />}
+                {spec}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -197,16 +195,16 @@ export default function ProProfile() {
           <div className="form-group">
             <label className="form-label">Ville</label>
             <select className="form-input form-select" disabled={!editing}
-              value={form.professionalInfo.serviceArea.city}
+              value={form?.professionalInfo?.serviceArea?.city || ''}
               onChange={e => updateField('professionalInfo.serviceArea.city', e.target.value)}>
               <option value="">Sélectionner</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Rayon ({form.professionalInfo.serviceArea.radius} km)</label>
+            <label className="form-label">Rayon ({form?.professionalInfo?.serviceArea?.radius || 0} km)</label>
             <input type="range" min="5" max="100" step="5" disabled={!editing}
-              value={form.professionalInfo.serviceArea.radius}
+              value={form?.professionalInfo?.serviceArea?.radius || 20}
               onChange={e => updateField('professionalInfo.serviceArea.radius', Number(e.target.value))}
               style={{ width: '100%', accentColor: 'var(--color-primary)', marginTop: 8 }} />
           </div>
@@ -217,26 +215,29 @@ export default function ProProfile() {
       <div className="profile-section">
         <div className="profile-section-title"><Clock size={18} /> Disponibilités</div>
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-          {DAYS.map(day => (
-            <button key={day.id}
-              className={`tag ${form.professionalInfo.availability.days.includes(day.id) ? 'tag-success' : ''}`}
-              onClick={() => editing && toggleDay(day.id)}
-              style={{ cursor: editing ? 'pointer' : 'default', padding: '6px 14px' }}>
-              {day.label}
-            </button>
-          ))}
+          {DAYS.map(day => {
+            const isDaySelected = (form?.professionalInfo?.availability?.days || []).includes(day.id);
+            return (
+              <button key={day.id}
+                className={`tag ${isDaySelected ? 'tag-success' : ''}`}
+                onClick={() => editing && toggleDay(day.id)}
+                style={{ cursor: editing ? 'pointer' : 'default', padding: '6px 14px' }}>
+                {day.label}
+              </button>
+            );
+          })}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
           <div className="form-group">
             <label className="form-label">De</label>
             <input className="form-input" type="time" disabled={!editing}
-              value={form.professionalInfo.availability.hours.start}
+              value={form?.professionalInfo?.availability?.hours?.start || '08:00'}
               onChange={e => updateField('professionalInfo.availability.hours.start', e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label">À</label>
             <input className="form-input" type="time" disabled={!editing}
-              value={form.professionalInfo.availability.hours.end}
+              value={form?.professionalInfo?.availability?.hours?.end || '18:00'}
               onChange={e => updateField('professionalInfo.availability.hours.end', e.target.value)} />
           </div>
         </div>

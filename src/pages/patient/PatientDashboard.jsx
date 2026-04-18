@@ -42,11 +42,26 @@ export default function PatientDashboard() {
   }, [user]);
 
   const CARE_STYLES = {
-    nursing: { bg: '#F8FAFC', color: '#2563EB', icon: '💉' },
-    physio:  { bg: '#F8FAFC', color: '#10B981', icon: '🦴' },
-    blood:   { bg: '#F8FAFC', color: '#EF4444', icon: '🩸' },
-    companion: { bg: '#F8FAFC', color: '#F59E0B', icon: '🤝' },
-    hygiene: { bg: '#F8FAFC', color: '#8B5CF6', icon: '🧽' }
+    nursing: { 
+      bg: 'url(https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    },
+    physio: { 
+      bg: 'url(https://images.unsplash.com/photo-1588286840104-8957b019727f?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    },
+    blood: { 
+      bg: 'url(https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    },
+    companion: { 
+      bg: 'url(https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    },
+    hygiene: { 
+      bg: 'url(https://images.unsplash.com/photo-1584308666744-24d5e4a8b753?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    }
   };
 
   const openMissions = missions.filter(m => m.status === 'open');
@@ -75,9 +90,9 @@ export default function PatientDashboard() {
       </div>
 
       {/* Categories of Care */}
-      <div className="section">
+      <div className="section" style={{ padding: '0 var(--content-padding)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-          <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 800 }}>Catégories</h2>
+          <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800 }}>Soins disponibles</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 'var(--space-3)' }}>
           {CARE_TYPES.slice(0,4).map((care) => {
@@ -85,14 +100,16 @@ export default function PatientDashboard() {
             return (
               <div key={care.id} onClick={() => navigate('/patient/create-mission')}
                    style={{ 
-                     background: '#FFFFFF', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-xl)', 
-                     display: 'flex', alignItems: 'center', gap: 'var(--space-3)', 
-                     boxShadow: '0 4px 15px -3px rgba(0,0,0,0.05)', cursor: 'pointer', border: '1px solid var(--border-light)'
+                     background: style.bg, height: '140px', borderRadius: 'var(--radius-xl)', 
+                     position: 'relative', overflow: 'hidden', cursor: 'pointer',
+                     boxShadow: '0 10px 20px -5px rgba(0,0,0,0.15)'
                    }}>
-                <div style={{ background: style.bg, width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
-                  {style.icon}
+                <div style={{ position: 'absolute', inset: 0, background: style.overlay }} />
+                <div style={{ position: 'absolute', bottom: 'var(--space-3)', left: 'var(--space-3)', right: 'var(--space-3)' }}>
+                  <div style={{ fontWeight: 800, fontSize: 'var(--font-base)', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                    {care.label}
+                  </div>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>{care.label}</div>
               </div>
             );
           })}
