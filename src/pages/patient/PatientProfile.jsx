@@ -20,6 +20,23 @@ export default function PatientProfile() {
     },
   });
 
+  // Sync state if user data changes (e.g. after refresh or update completion)
+  useEffect(() => {
+    if (user) {
+      setForm({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '',
+        address: {
+          street: user.address?.street || '',
+          city: user.address?.city || '',
+          postalCode: user.address?.postalCode || '',
+        },
+      });
+    }
+  }, [user]);
+
+
   const update = (key, value) => {
     if (key.startsWith('address.')) {
       const field = key.split('.')[1];

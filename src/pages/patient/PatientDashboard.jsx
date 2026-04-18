@@ -42,25 +42,25 @@ export default function PatientDashboard() {
   }, [user]);
 
   const CARE_STYLES = {
-    nursing: { 
-      bg: 'url(https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80) center/cover', 
-      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    injection: { 
+      bg: 'url(https://images.unsplash.com/photo-1542884748-2b87b36c6b90?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(37,99,235,0.2) 0%, rgba(37,99,235,0.8) 100%)'
     },
-    physio: { 
-      bg: 'url(https://images.unsplash.com/photo-1588286840104-8957b019727f?w=600&q=80) center/cover', 
-      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
-    },
-    blood: { 
-      bg: 'url(https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&q=80) center/cover', 
-      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
-    },
-    companion: { 
-      bg: 'url(https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&q=80) center/cover', 
-      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+    bandage: { 
+      bg: 'url(https://images.unsplash.com/photo-1603398938378-fb54f510a60f?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.8) 100%)'
     },
     hygiene: { 
-      bg: 'url(https://images.unsplash.com/photo-1584308666744-24d5e4a8b753?w=600&q=80) center/cover', 
-      overlay: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)'
+      bg: 'url(https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(139,92,246,0.2) 0%, rgba(139,92,246,0.8) 100%)'
+    },
+    monitoring: { 
+      bg: 'url(https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(6,182,212,0.2) 0%, rgba(6,182,212,0.8) 100%)'
+    },
+    medication: { 
+      bg: 'url(https://images.unsplash.com/photo-1550572017-ed200f545dec?w=600&q=80) center/cover', 
+      overlay: 'linear-gradient(180deg, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.8) 100%)'
     }
   };
 

@@ -126,11 +126,14 @@ html {
 body {
   font-family: var(--font-family);
   color: var(--text-primary);
-  background: var(--bg-body);
+  background: 
+    linear-gradient(rgba(240, 244, 248, 0.9), rgba(240, 244, 248, 0.9)),
+    url('https://images.unsplash.com/photo-1516549655169-df83a0774514?w=1600&q=80') center/cover fixed;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 a {
@@ -628,6 +631,8 @@ ul, ol { list-style: none; }
   min-height: 100vh;
   max-width: 640px;
   margin: 0 auto;
+  backdrop-filter: blur(5px);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .page-container.no-bottom-nav {
