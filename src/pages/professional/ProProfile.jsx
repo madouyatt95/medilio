@@ -19,9 +19,16 @@ export default function ProProfile() {
     phone: user?.phone || '',
     professionalInfo: {
       specialties: user?.professionalInfo?.specialties || [],
-      serviceArea: user?.professionalInfo?.serviceArea || { city: '', radius: 20 },
-      availability: user?.professionalInfo?.availability || {
-        days: [], hours: { start: '08:00', end: '18:00' }
+      serviceArea: {
+        city: user?.professionalInfo?.serviceArea?.city || '',
+        radius: user?.professionalInfo?.serviceArea?.radius || 20
+      },
+      availability: {
+        days: user?.professionalInfo?.availability?.days || [],
+        hours: {
+          start: user?.professionalInfo?.availability?.hours?.start || '08:00',
+          end: user?.professionalInfo?.availability?.hours?.end || '18:00'
+        }
       },
       bio: user?.professionalInfo?.bio || '',
       verified: user?.professionalInfo?.verified || false,
@@ -88,66 +95,56 @@ export default function ProProfile() {
 
   return (
     <div className="page-container">
-      {/* Header */}
+      {/* Header Full Bleed */}
       <div style={{
-        margin: 'calc(var(--space-4) * -1) calc(var(--content-padding) * -1) var(--space-5)',
-        padding: 'var(--space-8) var(--content-padding) var(--space-5)',
+        marginTop: 'calc(var(--header-height) * -1)',
+        marginLeft: 'calc(var(--content-padding) * -1)',
+        marginRight: 'calc(var(--content-padding) * -1)',
+        paddingTop: 'var(--space-16)',
+        paddingBottom: 'var(--space-12)',
+        paddingLeft: 'var(--content-padding)',
+        paddingRight: 'var(--content-padding)',
         background: 'url(https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80) center/cover',
         position: 'relative',
         color: 'white',
-        borderBottomLeftRadius: 'var(--radius-xl)',
-        borderBottomRightRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--shadow-md)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center'
       }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)', borderRadius: 'inherit', zIndex: 1 }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, #F0F4F8 100%)', zIndex: 1 }} />
         
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="avatar avatar-xl" style={{ border: '4px solid white', boxShadow: 'var(--shadow-lg)', marginBottom: 'var(--space-3)' }}>
+          <div className="avatar avatar-xl" style={{ border: '4px solid white', boxShadow: 'var(--shadow-lg)', marginBottom: 'var(--space-3)', transform: 'translateY(20px)' }}>
             {user?.firstName?.[0]}{user?.lastName?.[0]}
           </div>
-          <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-            {user?.firstName} {user?.lastName}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-            {form.professionalInfo.verified ? (
-              <span className="badge" style={{ background: 'var(--color-success)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                <Shield size={12} /> Vérifié
-              </span>
-            ) : (
-              <span className="badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
-                En attente
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ 
-          position: 'relative', zIndex: 2, display: 'flex', width: '100%', maxWidth: '400px', 
-          marginTop: 'var(--space-5)', padding: 'var(--space-3)', justifyContent: 'space-around', 
-          background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.1)' 
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: '#67E8F9' }}>{completedMissions.length}</div>
-            <div style={{ fontSize: 'var(--font-xs)', color: 'rgba(255,255,255,0.8)' }}>Missions</div>
-          </div>
-          <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: '#67E8F9' }}>{totalEarnings}€</div>
-            <div style={{ fontSize: 'var(--font-xs)', color: 'rgba(255,255,255,0.8)' }}>Revenus</div>
-          </div>
         </div>
       </div>
 
-      {/* Edit Toggle */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
-        <button className={`btn btn-sm ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`} onClick={() => editing ? handleSave() : setEditing(true)}>
-          {editing ? <><Save size={14} /> Sauvegarder</> : <><Edit3 size={14} /> Modifier mon profil</>}
+      <div style={{ position: 'relative', zIndex: 3, marginTop: '-20px', textAlign: 'center', paddingBottom: 'var(--space-4)' }}>
+        <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)' }}>
+          {user?.firstName} {user?.lastName}
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+          {form.professionalInfo.verified ? (
+            <span className="badge" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)', border: '1px solid currentColor' }}>
+              <Shield size={12} /> Vérifié
+            </span>
+          ) : (
+            <span className="badge badge-assigned">
+              En attente
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Floating Action Button */}
+      <div style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + 16px)', right: '16px', zIndex: 100 }}>
+        <button className={`btn btn-lg ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`} style={{ borderRadius: '99px', padding: '16px' }} onClick={() => editing ? handleSave() : setEditing(true)}>
+          {editing ? <><Save size={24} /></> : <><Edit3 size={24} /></>}
         </button>
       </div>
+
 
       {/* Personal Info */}
       <div className="profile-section">

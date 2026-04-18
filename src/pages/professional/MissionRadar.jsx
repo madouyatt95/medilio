@@ -73,14 +73,12 @@ export default function MissionRadar() {
       minHeight: '100vh', 
       backgroundColor: '#0F172A',
       backgroundImage: `
-        radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
-        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+        radial-gradient(circle at center, rgba(37, 99, 235, 0.2) 0%, #0F172A 80%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e293b' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
       `,
-      backgroundSize: '100% 100%, 40px 40px, 40px 40px',
-      backgroundPosition: 'center, center, center',
       backgroundAttachment: 'fixed',
-      paddingBottom: 'var(--space-12)'
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <div className="page-container" style={{ position: 'relative', zIndex: 10 }}>
         {/* Header styling specifically for radar */}
@@ -132,53 +130,42 @@ export default function MissionRadar() {
             <div className="empty-state-text" style={{ color: 'rgba(255,255,255,0.7)' }}>Essayez d'élargir votre zone de recherche ou vos filtres.</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'var(--space-4)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)' }}>
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)', scrollbarWidth: 'none' }}>
             {filtered.map(mission => (
-              <div key={mission.id} className="glass-panel animate-fadeInUp" style={{ minWidth: '320px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div key={mission.id} style={{ 
+                minWidth: '300px', maxWidth: '300px', display: 'flex', flexDirection: 'column',
+                background: 'rgba(30, 41, 59, 0.8)', backdropFilter: 'blur(20px)', borderRadius: 'var(--radius-xl)',
+                border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.5)'
+              }}>
+                <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 700 }}>
-                      <div className="mission-card-type-icon" style={{ background: 'var(--color-primary-light)', color: 'white' }}><ClipboardList size={18} /></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800 }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 10px #67E8F9' }} />
                       {getCareLabel(mission.careType)}
                     </div>
                     {cityFilter && mission.address?.city && (
-                      <span className="badge" style={{ background: 'rgba(255,255,255,0.2)' }}>{getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}</span>
+                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px' }}>
+                        {getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 <div style={{ padding: 'var(--space-4)', flex: 1 }}>
-                  <p style={{ fontSize: 'var(--font-sm)', color: 'rgba(255,255,255,0.8)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
-                    {mission.description?.slice(0, 120)}{mission.description?.length > 120 ? '...' : ''}
-                  </p>
-
-                  <div className="mission-card-meta" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                    <div className="mission-card-meta-row">
-                      <Calendar size={16} /> {formatDate(mission.scheduledDate)} à {mission.scheduledTime}
-                    </div>
-                    <div className="mission-card-meta-row">
-                      <MapPin size={16} /> {mission.address?.street}, {mission.address?.city}
-                    </div>
-                    <div className="mission-card-meta-row">
-                      <Clock size={16} /> {mission.estimatedDuration} min
-                    </div>
-                    <div className="mission-card-meta-row">
-                      <User size={16} /> {mission.patientInfo?.name}
-                      {mission.patientInfo?.age ? `, ${mission.patientInfo.age} ans` : ''}
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', color: 'rgba(255,255,255,0.9)', fontSize: 'var(--font-sm)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={14} color="#64748b" /> {formatDate(mission.scheduledDate)}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} color="#64748b" /> {mission.address?.city}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={14} color="#64748b" /> {mission.estimatedDuration} minutes</div>
                   </div>
                 </div>
 
-                <div style={{ padding: 'var(--space-4)', background: 'rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  {mission.estimatedCost ? (
-                    <div className="mission-card-price" style={{ color: '#67E8F9' }}>{mission.estimatedCost} €</div>
-                  ) : <span />}
+                <div style={{ padding: 'var(--space-4)', background: 'rgba(15, 23, 42, 0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: '#67E8F9', fontWeight: 800, fontSize: 'var(--font-lg)' }}>{mission.estimatedCost ? `${mission.estimatedCost} €` : '-'}</div>
                   {hasApplied(mission) ? (
-                    <span className="badge" style={{ background: 'var(--color-success)', color: 'white' }}>Postulé</span>
+                    <span style={{ color: '#10B981', fontWeight: 700, fontSize: '14px' }}>Postulé ✓</span>
                   ) : (
-                    <button className="btn btn-primary btn-glow btn-sm"
-                      onClick={(e) => { e.stopPropagation(); handleApply(mission.id); }}>
-                      <Send size={14} /> Postuler
+                    <button className="btn btn-primary btn-glow btn-sm" style={{ borderRadius: '99px' }} onClick={(e) => { e.stopPropagation(); handleApply(mission.id); }}>
+                      <Send size={14} /> J'y vais
                     </button>
                   )}
                 </div>

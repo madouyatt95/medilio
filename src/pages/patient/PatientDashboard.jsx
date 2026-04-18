@@ -42,26 +42,11 @@ export default function PatientDashboard() {
   }, [user]);
 
   const CARE_STYLES = {
-    nursing: {
-      bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-      icon: '💉'
-    },
-    physio: {
-      bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-      icon: '🦴'
-    },
-    blood: {
-      bg: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
-      icon: '🩸'
-    },
-    companion: {
-      bg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-      icon: '🤝'
-    },
-    hygiene: {
-      bg: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-      icon: '🧽'
-    }
+    nursing: { bg: '#F8FAFC', color: '#2563EB', icon: '💉' },
+    physio:  { bg: '#F8FAFC', color: '#10B981', icon: '🦴' },
+    blood:   { bg: '#F8FAFC', color: '#EF4444', icon: '🩸' },
+    companion: { bg: '#F8FAFC', color: '#F59E0B', icon: '🤝' },
+    hygiene: { bg: '#F8FAFC', color: '#8B5CF6', icon: '🧽' }
   };
 
   const openMissions = missions.filter(m => m.status === 'open');
@@ -73,29 +58,41 @@ export default function PatientDashboard() {
 
   return (
     <div className="page-container">
-      {/* Greeting */}
-      <div className="dashboard-greeting animate-fadeIn">
-        <h1>Bonjour, {user?.firstName} 👋</h1>
-        <p>Gérez vos demandes de soins à domicile</p>
+      {/* Greeting & Search */}
+      <div className="dashboard-greeting" style={{ marginBottom: 'var(--space-5)' }}>
+        <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>Bonjour, {user?.firstName} 👋</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>Comment pouvons-nous vous aider aujourd'hui ?</p>
+      </div>
+
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', background: '#FFFFFF', padding: '16px 20px', 
+          borderRadius: '99px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid var(--border-light)'
+        }}>
+          <span style={{ fontSize: '20px', marginRight: '12px' }}>🔍</span>
+          <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--font-base)', fontWeight: 500 }}>Rechercher un soin, une infirmière...</span>
+        </div>
       </div>
 
       {/* Categories of Care */}
-      <div className="section animate-fadeInUp">
-        <div className="section-title">
-          <span>Nos catégories de soins</span>
+      <div className="section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 800 }}>Catégories</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 'var(--space-3)' }}>
           {CARE_TYPES.slice(0,4).map((care) => {
             const style = CARE_STYLES[care.id] || CARE_STYLES.nursing;
             return (
-              <div key={care.id} className="category-card" 
-                   style={{ background: style.bg, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}
-                   onClick={() => navigate('/patient/create-mission')}
-              >
-                <div style={{ fontSize: '32px', marginBottom: 'var(--space-2)' }}>{style.icon}</div>
-                <div className="category-card-content" style={{ width: '100%' }}>
-                  <div className="category-card-title">{care.label}</div>
+              <div key={care.id} onClick={() => navigate('/patient/create-mission')}
+                   style={{ 
+                     background: '#FFFFFF', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-xl)', 
+                     display: 'flex', alignItems: 'center', gap: 'var(--space-3)', 
+                     boxShadow: '0 4px 15px -3px rgba(0,0,0,0.05)', cursor: 'pointer', border: '1px solid var(--border-light)'
+                   }}>
+                <div style={{ background: style.bg, width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
+                  {style.icon}
                 </div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>{care.label}</div>
               </div>
             );
           })}
@@ -104,23 +101,24 @@ export default function PatientDashboard() {
 
       {/* Featured Professionals */}
       {featuredPros.length > 0 && (
-        <div className="section animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
-          <div className="section-title">
-            <span>Professionnels à la une</span>
-          </div>
-          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'var(--space-3)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)'}}>
+        <div className="section">
+          <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, marginBottom: 'var(--space-4)' }}>Disponibles près de vous</h2>
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-3)', paddingBottom: 'var(--space-2)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)', scrollbarWidth: 'none' }}>
             {featuredPros.map(pro => (
-              <div key={pro.id} className="glass-panel" style={{ minWidth: '220px', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }} onClick={() => navigate('/patient/create-mission')}>
-                <div className="avatar avatar-xl" style={{ marginBottom: 'var(--space-3)' }}>{pro.firstName?.[0]}{pro.lastName?.[0]}</div>
-                <div style={{ fontWeight: 700, fontSize: 'var(--font-base)' }}>{pro.firstName} {pro.lastName}</div>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
-                  {pro.professionalInfo?.specialties?.slice(0, 2).join(', ')}
+              <div key={pro.id} onClick={() => navigate('/patient/create-mission')}
+                   style={{ minWidth: '140px', background: '#FFFFFF', padding: 'var(--space-4)', borderRadius: 'var(--radius-xl)', 
+                            boxShadow: '0 4px 15px -3px rgba(0,0,0,0.05)', border: '1px solid var(--border-light)', 
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer' }}>
+                <div className="avatar avatar-lg" style={{ marginBottom: 'var(--space-2)', background: 'var(--color-primary-lighter)', color: 'var(--color-primary)' }}>
+                  {pro.firstName?.[0]}{pro.lastName?.[0]}
                 </div>
-                {pro.ratingCount > 0 ? (
-                  <RatingDisplay average={pro.ratingAvg} count={pro.ratingCount} size={14} />
-                ) : (
-                  <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Nouveau</span>
-                )}
+                <div style={{ fontWeight: 800, fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>{pro.firstName}</div>
+                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
+                  {pro.professionalInfo?.specialties?.[0] || 'Généraliste'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', color: '#F59E0B', fontSize: 'var(--font-xs)', fontWeight: 700 }}>
+                  ★ {pro.ratingCount > 0 ? pro.ratingAvg : 'Nouveau'}
+                </div>
               </div>
             ))}
           </div>
