@@ -41,12 +41,27 @@ export default function PatientDashboard() {
     loadData();
   }, [user]);
 
-  const CARE_IMAGES = {
-    nursing: 'https://images.unsplash.com/photo-1584820927508-cadeaca4e4f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    physio: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    blood: 'https://images.unsplash.com/photo-1579684453423-f84349ef60b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    companion: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    hygiene: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
+  const CARE_STYLES = {
+    nursing: {
+      bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+      icon: '💉'
+    },
+    physio: {
+      bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+      icon: '🦴'
+    },
+    blood: {
+      bg: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+      icon: '🩸'
+    },
+    companion: {
+      bg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+      icon: '🤝'
+    },
+    hygiene: {
+      bg: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+      icon: '🧽'
+    }
   };
 
   const openMissions = missions.filter(m => m.status === 'open');
@@ -70,16 +85,20 @@ export default function PatientDashboard() {
           <span>Nos catégories de soins</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-          {CARE_TYPES.slice(0,4).map((care) => (
-            <div key={care.id} className="category-card" 
-                 style={{ backgroundImage: `url(${CARE_IMAGES[care.id] || CARE_IMAGES.nursing})` }}
-                 onClick={() => navigate('/patient/create-mission')}
-            >
-              <div className="category-card-content">
-                <div className="category-card-title">{care.label}</div>
+          {CARE_TYPES.slice(0,4).map((care) => {
+            const style = CARE_STYLES[care.id] || CARE_STYLES.nursing;
+            return (
+              <div key={care.id} className="category-card" 
+                   style={{ background: style.bg, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}
+                   onClick={() => navigate('/patient/create-mission')}
+              >
+                <div style={{ fontSize: '32px', marginBottom: 'var(--space-2)' }}>{style.icon}</div>
+                <div className="category-card-content" style={{ width: '100%' }}>
+                  <div className="category-card-title">{care.label}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

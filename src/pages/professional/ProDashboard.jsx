@@ -73,18 +73,27 @@ export default function ProDashboard() {
       </div>
 
       {/* Quick action card */}
-      <div className="card card-interactive" onClick={() => navigate('/pro/radar')}
-        style={{ marginBottom: 'var(--space-6)', background: 'var(--color-primary-gradient)', color: 'white', cursor: 'pointer' }}>
+      <div className="glass-panel" onClick={() => navigate('/pro/radar')}
+        style={{ 
+          marginBottom: 'var(--space-6)', 
+          background: 'var(--color-primary-gradient)', 
+          color: 'white', 
+          cursor: 'pointer',
+          padding: 'var(--space-5)',
+          boxShadow: 'var(--shadow-glow)'
+        }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 'var(--font-lg)', marginBottom: 4 }}>
+            <div style={{ fontWeight: 800, fontSize: 'var(--font-xl)', marginBottom: 4, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
               🔍 Rechercher des missions
             </div>
             <div style={{ fontSize: 'var(--font-sm)', opacity: 0.9 }}>
               {openCount} mission(s) disponible(s) près de vous
             </div>
           </div>
-          <ChevronRight size={24} />
+          <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px', borderRadius: '50%' }}>
+            <ChevronRight size={24} color="white" />
+          </div>
         </div>
       </div>
 

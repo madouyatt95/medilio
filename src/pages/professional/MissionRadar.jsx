@@ -71,9 +71,14 @@ export default function MissionRadar() {
   return (
     <div className="dark-mode" style={{ 
       minHeight: '100vh', 
-      backgroundImage: 'url(https://images.unsplash.com/photo-1524661135-423995f22d0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80)', 
-      backgroundSize: 'cover', 
-      backgroundPosition: 'center', 
+      backgroundColor: '#0F172A',
+      backgroundImage: `
+        radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+      `,
+      backgroundSize: '100% 100%, 40px 40px, 40px 40px',
+      backgroundPosition: 'center, center, center',
       backgroundAttachment: 'fixed',
       paddingBottom: 'var(--space-12)'
     }}>
