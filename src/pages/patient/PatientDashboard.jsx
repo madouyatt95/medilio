@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import missionService from '../../services/missionService';
+import authService from '../../services/authService';
+import ratingService from '../../services/ratingService';
+import { RatingDisplay } from '../../components/SharedComponents';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import {
@@ -14,16 +17,37 @@ export default function PatientDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [missions, setMissions] = useState([]);
+  const [featuredPros, setFeaturedPros] = useState([]);
 
   useEffect(() => {
-    async function loadMissions() {
+    async function loadData() {
       if (user) {
-        const data = await missionService.getByPatient(user.id);
-        setMissions(data);
+        setMissions(await missionService.getByPatient(user.id));
       }
+      
+      // Load verified pros for the carousel
+      const users = await authService.getAllUsers();
+      const pros = users.filter(u => u.role === 'professional' && u.professionalInfo?.verified);
+      const proRatings = await ratingService.getAllProRatings();
+      
+      const proData = pros.map(p => {
+        const ratings = proRatings[p.id] || [];
+        const avg = ratings.length ? ratings.reduce((s, r) => s + r.score, 0) / ratings.length : 0;
+        return { ...p, ratingAvg: Math.round(avg * 10) / 10, ratingCount: ratings.length };
+      }).sort((a,b) => b.ratingAvg - a.ratingAvg).slice(0, 5);
+      
+      setFeaturedPros(proData);
     }
-    loadMissions();
+    loadData();
   }, [user]);
+
+  const CARE_IMAGES = {
+    nursing: 'https://images.unsplash.com/photo-1584820927508-cadeaca4e4f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+    physio: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+    blood: 'https://images.unsplash.com/photo-1579684453423-f84349ef60b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+    companion: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+    hygiene: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
+  };
 
   const openMissions = missions.filter(m => m.status === 'open');
   const assignedMissions = missions.filter(m => m.status === 'assigned' || m.status === 'in_progress');
@@ -40,37 +64,49 @@ export default function PatientDashboard() {
         <p>Gérez vos demandes de soins à domicile</p>
       </div>
 
-      {/* Stats */}
-      <div className="dashboard-stats animate-fadeInUp">
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--color-info-light)', color: 'var(--color-info)' }}>
-            <Clock size={22} />
-          </div>
-          <div className="stat-card-value">{openMissions.length}</div>
-          <div className="stat-card-label">En attente</div>
+      {/* Categories of Care */}
+      <div className="section animate-fadeInUp">
+        <div className="section-title">
+          <span>Nos catégories de soins</span>
         </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--color-warning-light)', color: 'var(--color-warning)' }}>
-            <Calendar size={22} />
-          </div>
-          <div className="stat-card-value">{assignedMissions.length}</div>
-          <div className="stat-card-label">Assignées</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>
-            <CheckCircle size={22} />
-          </div>
-          <div className="stat-card-value">{completedMissions.length}</div>
-          <div className="stat-card-label">Terminées</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#E0E7FF', color: '#6366F1' }}>
-            <Users size={22} />
-          </div>
-          <div className="stat-card-value">{totalApplicants}</div>
-          <div className="stat-card-label">Candidatures</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          {CARE_TYPES.slice(0,4).map((care) => (
+            <div key={care.id} className="category-card" 
+                 style={{ backgroundImage: `url(${CARE_IMAGES[care.id] || CARE_IMAGES.nursing})` }}
+                 onClick={() => navigate('/patient/create-mission')}
+            >
+              <div className="category-card-content">
+                <div className="category-card-title">{care.label}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* Featured Professionals */}
+      {featuredPros.length > 0 && (
+        <div className="section animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
+          <div className="section-title">
+            <span>Professionnels à la une</span>
+          </div>
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'var(--space-3)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)'}}>
+            {featuredPros.map(pro => (
+              <div key={pro.id} className="glass-panel" style={{ minWidth: '220px', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }} onClick={() => navigate('/patient/create-mission')}>
+                <div className="avatar avatar-xl" style={{ marginBottom: 'var(--space-3)' }}>{pro.firstName?.[0]}{pro.lastName?.[0]}</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--font-base)' }}>{pro.firstName} {pro.lastName}</div>
+                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+                  {pro.professionalInfo?.specialties?.slice(0, 2).join(', ')}
+                </div>
+                {pro.ratingCount > 0 ? (
+                  <RatingDisplay average={pro.ratingAvg} count={pro.ratingCount} size={14} />
+                ) : (
+                  <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Nouveau</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Upcoming Missions */}
       <div className="section">

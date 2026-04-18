@@ -69,105 +69,119 @@ export default function MissionRadar() {
   // Patient name no longer needed in this view (was unused in JSX)
 
   return (
-    <div className="page-container">
-      <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <Radar size={28} style={{ color: 'var(--color-primary)' }} />
-        Radar Missions
-      </div>
-      <p className="page-subtitle">{filtered.length} mission(s) disponible(s)</p>
+    <div className="dark-mode" style={{ 
+      minHeight: '100vh', 
+      backgroundImage: 'url(https://images.unsplash.com/photo-1524661135-423995f22d0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80)', 
+      backgroundSize: 'cover', 
+      backgroundPosition: 'center', 
+      backgroundAttachment: 'fixed',
+      paddingBottom: 'var(--space-12)'
+    }}>
+      <div className="page-container" style={{ position: 'relative', zIndex: 10 }}>
+        {/* Header styling specifically for radar */}
+        <div style={{ padding: 'var(--space-4) 0', marginBottom: 'var(--space-4)' }}>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+            <Radar size={28} style={{ color: 'var(--color-primary-light)' }} className="pulse-glow" />
+            Radar Missions
+          </div>
+          <p className="page-subtitle" style={{ color: 'rgba(255,255,255,0.8)', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{filtered.length} mission(s) disponible(s) à proximité</p>
+        </div>
 
-      {/* Filters */}
-      <div className="card" style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-          <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
-          <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-          <div className="form-group">
-            <label className="form-label" style={{ fontSize: 'var(--font-xs)' }}>Ville</label>
-            <select className="form-input form-select" value={cityFilter}
-              onChange={e => setCityFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)' }}>
-              <option value="">Toutes</option>
-              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+        {/* Filters */}
+        <div className="glass-panel" style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', color: 'white' }}>
+            <Filter size={16} />
+            <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
           </div>
-          <div className="form-group">
-            <label className="form-label" style={{ fontSize: 'var(--font-xs)' }}>Type de soin</label>
-            <select className="form-input form-select" value={careFilter}
-              onChange={e => setCareFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)' }}>
-              <option value="">Tous</option>
-              {CARE_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="form-group">
+              <select className="form-input form-select" value={cityFilter}
+                onChange={e => setCityFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}>
+                <option value="">Toutes les villes</option>
+                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <select className="form-input form-select" value={careFilter}
+                onChange={e => setCareFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}>
+                <option value="">Tous les types</option>
+                {CARE_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
           </div>
+          {cityFilter && (
+            <div style={{ marginTop: 'var(--space-4)' }}>
+              <label className="form-label" style={{ fontSize: 'var(--font-xs)', color: 'white' }}>Rayon : {radiusFilter} km</label>
+              <input type="range" min="5" max="100" step="5" value={radiusFilter}
+                onChange={e => setRadiusFilter(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--color-primary-light)' }} />
+            </div>
+          )}
         </div>
-        {cityFilter && (
-          <div style={{ marginTop: 'var(--space-2)' }}>
-            <label className="form-label" style={{ fontSize: 'var(--font-xs)' }}>Rayon : {radiusFilter} km</label>
-            <input type="range" min="5" max="100" step="5" value={radiusFilter}
-              onChange={e => setRadiusFilter(Number(e.target.value))}
-              style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+
+        {/* Missions List */}
+        {filtered.length === 0 ? (
+          <div className="glass-panel" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-4)' }}>
+            <div className="empty-state-icon" style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}><Search size={28} /></div>
+            <div className="empty-state-title" style={{ color: 'white' }}>Aucune mission trouvée</div>
+            <div className="empty-state-text" style={{ color: 'rgba(255,255,255,0.7)' }}>Essayez d'élargir votre zone de recherche ou vos filtres.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'var(--space-4)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)' }}>
+            {filtered.map(mission => (
+              <div key={mission.id} className="glass-panel animate-fadeInUp" style={{ minWidth: '320px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 700 }}>
+                      <div className="mission-card-type-icon" style={{ background: 'var(--color-primary-light)', color: 'white' }}><ClipboardList size={18} /></div>
+                      {getCareLabel(mission.careType)}
+                    </div>
+                    {cityFilter && mission.address?.city && (
+                      <span className="badge" style={{ background: 'rgba(255,255,255,0.2)' }}>{getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ padding: 'var(--space-4)', flex: 1 }}>
+                  <p style={{ fontSize: 'var(--font-sm)', color: 'rgba(255,255,255,0.8)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+                    {mission.description?.slice(0, 120)}{mission.description?.length > 120 ? '...' : ''}
+                  </p>
+
+                  <div className="mission-card-meta" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    <div className="mission-card-meta-row">
+                      <Calendar size={16} /> {formatDate(mission.scheduledDate)} à {mission.scheduledTime}
+                    </div>
+                    <div className="mission-card-meta-row">
+                      <MapPin size={16} /> {mission.address?.street}, {mission.address?.city}
+                    </div>
+                    <div className="mission-card-meta-row">
+                      <Clock size={16} /> {mission.estimatedDuration} min
+                    </div>
+                    <div className="mission-card-meta-row">
+                      <User size={16} /> {mission.patientInfo?.name}
+                      {mission.patientInfo?.age ? `, ${mission.patientInfo.age} ans` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: 'var(--space-4)', background: 'rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  {mission.estimatedCost ? (
+                    <div className="mission-card-price" style={{ color: '#67E8F9' }}>{mission.estimatedCost} €</div>
+                  ) : <span />}
+                  {hasApplied(mission) ? (
+                    <span className="badge" style={{ background: 'var(--color-success)', color: 'white' }}>Postulé</span>
+                  ) : (
+                    <button className="btn btn-primary btn-glow btn-sm"
+                      onClick={(e) => { e.stopPropagation(); handleApply(mission.id); }}>
+                      <Send size={14} /> Postuler
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
-
-      {/* Missions List */}
-      {filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><Search size={28} /></div>
-          <div className="empty-state-title">Aucune mission trouvée</div>
-          <div className="empty-state-text">Essayez d'élargir votre zone de recherche ou vos filtres.</div>
-        </div>
-      ) : (
-        <div className="mission-list">
-          {filtered.map(mission => (
-            <div key={mission.id} className="mission-card animate-fadeInUp">
-              <div className="mission-card-header">
-                <div className="mission-card-type">
-                  <div className="mission-card-type-icon"><ClipboardList size={18} /></div>
-                  {getCareLabel(mission.careType)}
-                </div>
-                {cityFilter && mission.address?.city && (
-                  <span className="tag">{getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}</span>
-                )}
-              </div>
-
-              <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
-                {mission.description?.slice(0, 120)}{mission.description?.length > 120 ? '...' : ''}
-              </p>
-
-              <div className="mission-card-meta">
-                <div className="mission-card-meta-row">
-                  <Calendar size={16} /> {formatDate(mission.scheduledDate)} à {mission.scheduledTime}
-                </div>
-                <div className="mission-card-meta-row">
-                  <MapPin size={16} /> {mission.address?.street}, {mission.address?.city}
-                </div>
-                <div className="mission-card-meta-row">
-                  <Clock size={16} /> {mission.estimatedDuration} min
-                </div>
-                <div className="mission-card-meta-row">
-                  <User size={16} /> {mission.patientInfo?.name}
-                  {mission.patientInfo?.age ? `, ${mission.patientInfo.age} ans` : ''}
-                </div>
-              </div>
-
-              <div className="mission-card-footer">
-                {mission.estimatedCost ? (
-                  <div className="mission-card-price">{mission.estimatedCost} €</div>
-                ) : <span />}
-                {hasApplied(mission) ? (
-                  <span className="badge badge-assigned"><span className="badge-dot" /> Postulé</span>
-                ) : (
-                  <button className="btn btn-primary btn-sm"
-                    onClick={(e) => { e.stopPropagation(); handleApply(mission.id); }}>
-                    <Send size={14} /> Postuler
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Apply Modal */}
       {showApplyModal && (

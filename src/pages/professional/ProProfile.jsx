@@ -89,32 +89,63 @@ export default function ProProfile() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="profile-header">
-        <div className="avatar avatar-xl">{user?.firstName?.[0]}{user?.lastName?.[0]}</div>
-        <div className="profile-name">{user?.firstName} {user?.lastName}</div>
-        <div className="profile-role" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          {form.professionalInfo.verified ? (
-            <span className="badge badge-completed"><Shield size={12} /> Vérifié</span>
-          ) : (
-            <span className="badge badge-assigned">En attente de vérification</span>
-          )}
-        </div>
-        <div className="profile-stats">
-          <div className="profile-stat">
-            <div className="profile-stat-value">{completedMissions.length}</div>
-            <div className="profile-stat-label">Missions</div>
+      <div style={{
+        margin: 'calc(var(--space-4) * -1) calc(var(--content-padding) * -1) var(--space-5)',
+        padding: 'var(--space-8) var(--content-padding) var(--space-5)',
+        background: 'url(https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80) center/cover',
+        position: 'relative',
+        color: 'white',
+        borderBottomLeftRadius: 'var(--radius-xl)',
+        borderBottomRightRadius: 'var(--radius-xl)',
+        boxShadow: 'var(--shadow-md)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center'
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)', borderRadius: 'inherit', zIndex: 1 }} />
+        
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="avatar avatar-xl" style={{ border: '4px solid white', boxShadow: 'var(--shadow-lg)', marginBottom: 'var(--space-3)' }}>
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
           </div>
-          <div className="profile-stat">
-            <div className="profile-stat-value">{totalEarnings}€</div>
-            <div className="profile-stat-label">Revenus</div>
+          <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+            {user?.firstName} {user?.lastName}
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+            {form.professionalInfo.verified ? (
+              <span className="badge" style={{ background: 'var(--color-success)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <Shield size={12} /> Vérifié
+              </span>
+            ) : (
+              <span className="badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
+                En attente
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ 
+          position: 'relative', zIndex: 2, display: 'flex', width: '100%', maxWidth: '400px', 
+          marginTop: 'var(--space-5)', padding: 'var(--space-3)', justifyContent: 'space-around', 
+          background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.1)' 
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: '#67E8F9' }}>{completedMissions.length}</div>
+            <div style={{ fontSize: 'var(--font-xs)', color: 'rgba(255,255,255,0.8)' }}>Missions</div>
+          </div>
+          <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: '#67E8F9' }}>{totalEarnings}€</div>
+            <div style={{ fontSize: 'var(--font-xs)', color: 'rgba(255,255,255,0.8)' }}>Revenus</div>
           </div>
         </div>
       </div>
 
       {/* Edit Toggle */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-3)' }}>
-        <button className="btn btn-secondary btn-sm" onClick={() => editing ? handleSave() : setEditing(true)}>
-          {editing ? <><Save size={14} /> Sauvegarder</> : <><Edit3 size={14} /> Modifier</>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
+        <button className={`btn btn-sm ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`} onClick={() => editing ? handleSave() : setEditing(true)}>
+          {editing ? <><Save size={14} /> Sauvegarder</> : <><Edit3 size={14} /> Modifier mon profil</>}
         </button>
       </div>
 
