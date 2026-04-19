@@ -7,10 +7,10 @@ import missionService from '../../services/missionService';
 import authService from '../../services/authService';
 import { CARE_TYPES, CITIES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
-import { filterMissionsByProximity, getDistanceLabel } from '../../utils/geoUtils';
+import { filterMissionsByProximity, getDistanceLabel, calculateDistance, CITY_COORDS } from '../../utils/geoUtils';
 import {
   Radar, MapPin, Calendar, Clock, Search, Filter,
-  ChevronRight, Send, User, ClipboardList
+  ChevronRight, Send, User, ClipboardList, Crosshair
 } from 'lucide-react';
 
 export default function MissionRadar() {
@@ -25,6 +25,41 @@ export default function MissionRadar() {
   const [applyingId, setApplyingId] = useState(null);
   const [applyMessage, setApplyMessage] = useState('');
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  // Detect user's city from browser GPS
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) {
+      showToast('La géolocalisation n\'est pas disponible sur votre appareil', 'error');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Find closest known city
+        let best = null;
+        let bestDist = Infinity;
+        for (const [city, coords] of Object.entries(CITY_COORDS)) {
+          const d = calculateDistance(latitude, longitude, coords.lat, coords.lng);
+          if (d < bestDist) {
+            bestDist = d;
+            best = city;
+          }
+        }
+        if (best) {
+          setCityFilter(best);
+          showToast(`📍 Position détectée : ${best} (${Math.round(bestDist)} km)`, 'success');
+        }
+        setLocating(false);
+      },
+      (err) => {
+        showToast('Impossible d\'obtenir votre position. Vérifiez les permissions.', 'error');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     async function load() {
@@ -92,9 +127,27 @@ export default function MissionRadar() {
 
         {/* Filters */}
         <div className="glass-panel" style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', color: 'white' }}>
-            <Filter size={16} />
-            <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)', color: 'white' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Filter size={16} />
+              <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
+            </div>
+            <button
+              onClick={handleGeolocate}
+              disabled={locating}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 14px', borderRadius: 'var(--radius-full)',
+                background: locating ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #06B6D4, #2563EB)',
+                color: 'white', border: 'none', fontSize: '12px', fontWeight: 600,
+                cursor: locating ? 'wait' : 'pointer',
+                boxShadow: '0 4px 12px rgba(6,182,212,0.3)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Crosshair size={14} style={{ animation: locating ? 'spin 1s linear infinite' : 'none' }} />
+              {locating ? 'Localisation...' : 'Me localiser'}
+            </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">

@@ -88,7 +88,7 @@ export const authService = {
       firstName: data.first_name,
       lastName: data.last_name,
       phone: data.phone || '',
-      avatar: null,
+      avatar: data.avatar_url || null,
       createdAt: data.created_at,
       address: {
         street: data.street || '',
@@ -150,7 +150,7 @@ export const authService = {
       firstName: p.first_name,
       lastName: p.last_name,
       phone: p.phone || '',
-      avatar: null,
+      avatar: p.avatar_url || null,
       createdAt: p.created_at,
       address: { street: p.street || '', city: p.city || '', postalCode: p.postal_code || '' },
       professionalInfo: p.role === 'professional' ? {

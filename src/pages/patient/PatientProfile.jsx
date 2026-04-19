@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { CITIES } from '../../utils/constants';
 import { User, MapPin, Phone, Mail, Save, LogOut, Edit3 } from 'lucide-react';
+import AvatarUpload from '../../components/AvatarUpload';
 
 export default function PatientProfile() {
   const { user, updateProfile, logout } = useAuth();
@@ -75,11 +76,8 @@ export default function PatientProfile() {
         textAlign: 'center', paddingBottom: 'var(--space-5)',
         display: 'flex', flexDirection: 'column', alignItems: 'center'
       }}>
-        <div className="avatar avatar-xl" style={{
-          border: '4px solid white', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          marginBottom: 'var(--space-3)', width: '100px', height: '100px', fontSize: '32px'
-        }}>
-          {user?.firstName?.[0] || 'P'}{user?.lastName?.[0] || ''}
+        <div style={{ marginBottom: 'var(--space-3)' }}>
+          <AvatarUpload user={user} size={100} onUploaded={() => window.location.reload()} />
         </div>
         <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)' }}>
           {user?.firstName || 'Patient'} {user?.lastName || ''}

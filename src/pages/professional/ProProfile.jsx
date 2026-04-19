@@ -8,6 +8,7 @@ import {
   User, MapPin, Clock, Stethoscope, Save, LogOut,
   CheckCircle, Shield, Edit3, Star, Award, Briefcase
 } from 'lucide-react';
+import AvatarUpload from '../../components/AvatarUpload';
 
 export default function ProProfile() {
   const { user, updateProfile, logout } = useAuth();
@@ -115,8 +116,11 @@ export default function ProProfile() {
         }} />
       </div>
 
-      {/* Name, Rating, Badge — overlapping the photo */}
-      <div style={{ position: 'relative', zIndex: 3, marginTop: '-60px', paddingBottom: 'var(--space-4)' }}>
+      {/* Name, Avatar, Badge — overlapping the photo */}
+      <div style={{ position: 'relative', zIndex: 3, marginTop: '-80px', paddingBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ marginBottom: 'var(--space-3)' }}>
+          <AvatarUpload user={user} size={110} onUploaded={() => window.location.reload()} />
+        </div>
         <h1 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
           {user?.firstName || 'Pro'} {user?.lastName || ''}
         </h1>

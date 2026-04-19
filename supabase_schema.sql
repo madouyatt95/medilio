@@ -15,6 +15,7 @@ CREATE TABLE public.profiles (
   street TEXT,
   city TEXT,
   postal_code TEXT,
+  avatar_url TEXT, -- Profile photo URL (Supabase Storage)
   specialties TEXT[], -- Pour les pros
   bio TEXT,
   radius INTEGER DEFAULT 10,
