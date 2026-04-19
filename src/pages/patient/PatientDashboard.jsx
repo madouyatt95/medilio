@@ -8,9 +8,11 @@ import ratingService from '../../services/ratingService';
 import { RatingDisplay } from '../../components/SharedComponents';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
+import supabase from '../../lib/supabase';
 import {
   Plus, Calendar, CheckCircle, Clock, Users,
-  MapPin, ChevronRight, ClipboardList, Star, Search
+  MapPin, ChevronRight, ClipboardList, Star, Search,
+  Phone, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 
 export default function PatientDashboard() {
@@ -18,6 +20,8 @@ export default function PatientDashboard() {
   const navigate = useNavigate();
   const [missions, setMissions] = useState([]);
   const [featuredPros, setFeaturedPros] = useState([]);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [isBroadcastingStart, setIsBroadcastingStart] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -51,14 +55,44 @@ export default function PatientDashboard() {
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
+  const handleSOSBroadcast = async () => {
+    setIsBroadcastingStart(true);
+    // Broadcast emergency on a public channel
+    const channel = supabase.channel('emergency-alerts');
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'sos',
+          payload: {
+            patientId: user.id,
+            patientName: `${user.firstName} ${user.lastName}`,
+            city: user.address?.city || 'Inconnue',
+            time: new Date().toISOString()
+          }
+        });
+        setTimeout(() => {
+          setIsBroadcastingStart(false);
+          setShowEmergencyModal(false);
+          showToast('Alerte SOS envoyée. Les professionnels autour de vous sont notifiés !', 'success');
+        }, 1500);
+      }
+    });
+  };
+
   return (
     <div className="page-container">
       {/* Greeting (below dark header) */}
-      <div className="dashboard-greeting" style={{ marginBottom: 'var(--space-5)', paddingTop: 'var(--space-2)' }}>
-        <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
-          Bonjour, {user?.firstName} 👋
-        </h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Comment pouvons-nous vous aider aujourd'hui ?</p>
+      <div className="dashboard-greeting" style={{ marginBottom: 'var(--space-5)', paddingTop: 'var(--space-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+            Bonjour, {user?.firstName} 👋
+          </h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Comment pouvons-nous vous aider aujourd'hui ?</p>
+        </div>
+        <button className="btn btn-icon" style={{ background: '#EF4444', color: 'white', borderRadius: '50%', width: 50, height: 50, boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)' }} onClick={() => setShowEmergencyModal(true)}>
+          <ShieldAlert size={24} />
+        </button>
       </div>
 
       {/* Search Bar (mockup style) */}
@@ -295,6 +329,36 @@ export default function PatientDashboard() {
       <button className="fab" onClick={() => navigate('/patient/create-mission')}>
         <Plus size={24} />
       </button>
+      {/* Emergency Modal */}
+      {showEmergencyModal && (
+        <div className="modal-overlay" onClick={() => setShowEmergencyModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+            <div className="modal-handle" />
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%', background: '#FCA5A5', color: '#EF4444',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-4)',
+              animation: 'pulseGlow 2s infinite'
+            }}>
+              <ShieldAlert size={40} />
+            </div>
+            <h3 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: '#DC2626', marginBottom: 'var(--space-2)' }}>
+              Alerte d'Urgence (Astreinte)
+            </h3>
+            <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-6)' }}>
+              Vous êtes sur le point de déclencher une alerte générale. Tous les professionnels de santé vérifiés et disponibles dans votre zone (<strong>{user?.address?.city || 'votre ville'}</strong>) recevront une notification immédiate.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <button className="btn btn-primary" style={{ background: '#EF4444', border: 'none', height: 50 }}
+                onClick={handleSOSBroadcast} disabled={isBroadcastingStart}>
+                {isBroadcastingStart ? 'Envoi en cours...' : 'Déclencher MSG SOS'}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setShowEmergencyModal(false)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

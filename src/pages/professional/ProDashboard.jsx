@@ -63,12 +63,12 @@ export default function ProDashboard() {
           <div className="stat-card-value">{completedMissions.length}</div>
           <div className="stat-card-label">Terminées</div>
         </div>
-        <div className="stat-card" onClick={() => navigate('/pro/earnings')} style={{ cursor: 'pointer' }}>
+        <div className="stat-card" onClick={() => navigate('/pro/tour')} style={{ cursor: 'pointer' }}>
           <div className="stat-card-icon" style={{ background: '#E0E7FF', color: '#6366F1' }}>
-            <TrendingUp size={22} />
+            <MapPin size={22} />
           </div>
-          <div className="stat-card-value">{totalEarnings}€</div>
-          <div className="stat-card-label">Revenus</div>
+          <div className="stat-card-value">{assignedMissions.length}</div>
+          <div className="stat-card-label">Ma Tournée</div>
         </div>
       </div>
 

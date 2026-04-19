@@ -36,6 +36,7 @@ export default function CreateMission() {
     recurrence: 'none',
     recurrenceEndDate: '',
     documents: [],
+    isForOther: false,
   });
 
   const update = (path, value) => {
@@ -181,24 +182,51 @@ export default function CreateMission() {
 
       {/* Step 2: Patient Info */}
       {step === 2 && (
-        <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 700 }}>
-            Informations du patient
+            Pour qui est ce soin ?
           </h2>
-          <div className="form-group">
-            <label className="form-label">Nom du patient</label>
-            <input className="form-input" placeholder="Nom complet"
+          
+          <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
+            <button 
+              className={`btn ${!form.isForOther ? 'btn-primary' : 'btn-secondary'}`} 
+              style={{ flex: 1 }}
+              onClick={() => {
+                update('isForOther', false);
+                update('patientInfo.name', `${user?.firstName} ${user?.lastName}`);
+              }}
+            >
+              Pour moi
+            </button>
+            <button 
+              className={`btn ${form.isForOther ? 'btn-primary' : 'btn-secondary'}`} 
+              style={{ flex: 1 }}
+              onClick={() => {
+                update('isForOther', true);
+                if (!form.patientInfo.name || form.patientInfo.name.includes(user?.firstName)) {
+                  update('patientInfo.name', '');
+                }
+              }}
+            >
+              Pour un proche
+            </button>
+          </div>
+
+          <div className="form-group" style={{ display: form.isForOther ? 'block' : 'none' }}>
+            <label className="form-label">Nom du proche (Patient)</label>
+            <input className="form-input" placeholder="Ex: Jean Dupont"
               value={form.patientInfo.name}
               onChange={e => update('patientInfo.name', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Âge</label>
-            <input className="form-input" type="number" placeholder="75"
+             {/* Always ask for age / conditions, but label depends on for whom */}
+            <label className="form-label">Âge {form.isForOther ? 'du patient' : ''}</label>
+            <input className="form-input" type="number" placeholder="Ex: 75"
               value={form.patientInfo.age}
               onChange={e => update('patientInfo.age', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Conditions médicales</label>
+            <label className="form-label">Conditions médicales / Antécédents</label>
             <textarea className="form-input form-textarea"
               placeholder="Pathologies, allergies, informations importantes..."
               value={form.patientInfo.conditions}

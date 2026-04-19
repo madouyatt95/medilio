@@ -123,16 +123,22 @@ export default function ProMissionDetail() {
 
       {/* Patient Contact (if assigned) */}
       {isAssigned && patient && (
-        <div className="card" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <div className="avatar">{patient.firstName?.[0]}{patient.lastName?.[0]}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>
-              {patient.firstName} {patient.lastName}
-            </div>
-            <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
-              📞 {patient.phone} — ✉️ {patient.email}
+        <div className="card" style={{ marginBottom: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <div className="avatar">{patient.firstName?.[0]}{patient.lastName?.[0]}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>
+                {patient.firstName} {patient.lastName}
+              </div>
+              <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
+                📞 {patient.phone} — ✉️ {patient.email}
+              </div>
             </div>
           </div>
+          <button className="btn btn-secondary btn-block" onClick={() => navigate(`/pro/patient/${patient.id}`)}>
+            <Activity size={16} style={{ marginRight: 8 }} />
+            Ouvrir le dossier patient (Carnet Partagé)
+          </button>
         </div>
       )}
 
