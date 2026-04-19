@@ -34,6 +34,7 @@ export default function CreateMission() {
     estimatedDuration: 30,
     estimatedCost: '',
     recurrence: 'none',
+    recurrenceEndDate: '',
     documents: [],
   });
 
@@ -234,6 +235,14 @@ export default function CreateMission() {
             </div>
           </div>
           <RecurrenceSelector value={form.recurrence} onChange={v => update('recurrence', v)} />
+          {form.recurrence !== 'none' && (
+            <div className="form-group animate-fadeIn" style={{ marginTop: 'var(--space-[-2])' }}>
+              <label className="form-label">Jusqu'au (Date de fin)</label>
+              <input className="form-input" type="date" min={form.scheduledDate || getTodayStr()}
+                value={form.recurrenceEndDate}
+                onChange={e => update('recurrenceEndDate', e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="form-label" style={{ marginBottom: 'var(--space-2)', display: 'block' }}>Documents (ordonnance, prescription...)</label>
             <DocumentUpload documents={form.documents} onChange={docs => update('documents', docs)} />
@@ -267,7 +276,14 @@ export default function CreateMission() {
                 <div className="mission-detail-row-icon"><Calendar size={20} /></div>
                 <div className="mission-detail-row-content">
                   <div className="mission-detail-row-label">Date & heure</div>
-                  <div className="mission-detail-row-value">{form.scheduledDate} à {form.scheduledTime}</div>
+                  <div className="mission-detail-row-value">
+                    {form.scheduledDate} à {form.scheduledTime}
+                    {form.recurrence !== 'none' && form.recurrenceEndDate && (
+                      <span style={{ display: 'block', fontSize: 'var(--font-xs)', color: 'var(--color-primary)' }}>
+                        Jusqu'au {form.recurrenceEndDate}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="mission-detail-row">

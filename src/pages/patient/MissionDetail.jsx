@@ -63,6 +63,14 @@ export default function PatientMissionDetail() {
     loadData();
   }, [id, navigate, user]);
 
+  // Prompt rating automatically if mission completed and not rated
+  useEffect(() => {
+    if (mission && mission.status === 'completed' && existingRating === null && mission.assignedProId) {
+      const timer = setTimeout(() => setShowRating(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [mission?.status, existingRating, mission?.assignedProId]);
+
   if (!mission) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;

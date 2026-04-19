@@ -82,30 +82,60 @@ export const missionService = {
       }
     }
 
+    // Calculate dates for recurrence
+    const dates = [missionData.scheduledDate];
+    if (missionData.recurrence && missionData.recurrence !== 'none' && missionData.recurrenceEndDate) {
+      let curr = new Date(missionData.scheduledDate);
+      const end = new Date(missionData.recurrenceEndDate);
+      // We limit to max 60 instances to prevent abuse (2 months of daily)
+      let count = 0;
+      
+      while (curr < end && count < 60) {
+        if (missionData.recurrence === 'daily') {
+          curr.setDate(curr.getDate() + 1);
+        } else if (missionData.recurrence === 'weekly') {
+          curr.setDate(curr.getDate() + 7);
+        } else if (missionData.recurrence === 'biweekly') {
+          curr.setDate(curr.getDate() + 14);
+        } else if (missionData.recurrence === 'monthly') {
+          curr.setMonth(curr.getMonth() + 1);
+        }
+        
+        if (curr <= end) {
+          dates.push(curr.toISOString().split('T')[0]);
+        }
+        count++;
+      }
+    }
+
+    const inserts = dates.map(date => ({
+      patient_id: missionData.patientId,
+      care_type: missionData.careType,
+      description: missionData.description || '',
+      street: missionData.address?.street || '',
+      city: missionData.address?.city || '',
+      postal_code: missionData.address?.postalCode || '',
+      scheduled_date: date,
+      scheduled_time: missionData.scheduledTime,
+      patient_name: missionData.patientInfo?.name || '',
+      patient_age: missionData.patientInfo?.age || null,
+      patient_conditions: missionData.patientInfo?.conditions || '',
+      estimated_duration: missionData.estimatedDuration || 30,
+      estimated_cost: missionData.estimatedCost || null,
+      recurrence: missionData.recurrence || 'none',
+      recurrence_end_date: missionData.recurrenceEndDate || null,
+      documents: uploadedDocs,
+    }));
+
     const { data, error } = await supabase
       .from('missions')
-      .insert({
-        patient_id: missionData.patientId,
-        care_type: missionData.careType,
-        description: missionData.description || '',
-        street: missionData.address?.street || '',
-        city: missionData.address?.city || '',
-        postal_code: missionData.address?.postalCode || '',
-        scheduled_date: missionData.scheduledDate,
-        scheduled_time: missionData.scheduledTime,
-        patient_name: missionData.patientInfo?.name || '',
-        patient_age: missionData.patientInfo?.age || null,
-        patient_conditions: missionData.patientInfo?.conditions || '',
-        estimated_duration: missionData.estimatedDuration || 30,
-        estimated_cost: missionData.estimatedCost || null,
-        recurrence: missionData.recurrence || 'none',
-        documents: uploadedDocs,
-      })
-      .select()
-      .single();
+      .insert(inserts)
+      .select();
 
     if (error) throw new Error(error.message);
-    return this._mapMission(data);
+    
+    // Return the very first mission created to navigate the user
+    return this._mapMission(data[0]);
   },
 
   async getAll() {

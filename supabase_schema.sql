@@ -42,6 +42,8 @@ CREATE TABLE public.missions (
   estimated_duration INTEGER DEFAULT 30,
   estimated_cost NUMERIC,
   recurrence TEXT DEFAULT 'none',
+  recurrence_end_date DATE,
+  parent_mission_id UUID REFERENCES public.missions(id),
   documents JSONB DEFAULT '[]'::jsonb, -- Store uploaded medical documents {name: str, url: str}
   status TEXT DEFAULT 'open' CHECK (status IN ('open', 'assigned', 'in_progress', 'completed', 'cancelled')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
