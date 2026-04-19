@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { seedDemoData } from './utils/demoData';
 import {
   Activity, Home, ClipboardList, User, Radar as RadarIcon,
-  TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle, AlertTriangle
+  TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle
 } from 'lucide-react';
 import { formatRelative, formatDate } from './utils/dateUtils';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from './utils/constants';
@@ -313,70 +313,10 @@ function PatientMissions() {
   );
 }
 
-// ── Global Emergency Listener ──
-function GlobalEmergencyListener() {
-  const { user } = useAuth();
-  const [sosAlert, setSosAlert] = useState(null);
-
-  useEffect(() => {
-    if (!user || user.role !== 'professional') return;
-
-    const channel = supabase.channel('emergency-alerts')
-      .on(
-        'broadcast',
-        { event: 'sos' },
-        (payload) => {
-          console.log('Received SOS:', payload.payload);
-          // In a real app we'd check distance here.
-          setSosAlert(payload.payload);
-          
-          // Play a loud sound
-          try {
-            const audio = new Audio('/alarm.mp3'); // Mock audio
-            audio.play().catch(e => console.log('Audio play block ignored'));
-          } catch(e) {}
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  if (!sosAlert) return null;
-
-  return (
-    <div className="modal-overlay" style={{ background: 'rgba(220, 38, 38, 0.4)', backdropFilter: 'blur(10px)', zIndex: 9999 }}>
-      <div className="modal-content" style={{ textAlign: 'center', border: '3px solid #EF4444', animation: 'pulseGlow 1s infinite' }}>
-        <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#EF4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-4)' }}>
-          <AlertTriangle size={40} />
-        </div>
-        <h2 style={{ color: '#EF4444', fontSize: 'var(--font-2xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>URGENCE VITALE (SOS)</h2>
-        <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
-          Une urgence a été déclenchée à proximité par :
-        </p>
-        <div style={{ fontSize: 'var(--font-xl)', fontWeight: 700, marginBottom: 'var(--space-4)' }}>
-          {sosAlert.patientName} <br/> <span style={{ fontSize: 'var(--font-base)', color: 'var(--color-primary)' }}>📍 {sosAlert.city}</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <button className="btn btn-primary" style={{ background: '#EF4444', border: 'none', height: 60, fontSize: 'var(--font-lg)' }} onClick={() => setSosAlert(null)}>
-            J'INTERVIENS
-          </button>
-          <button className="btn btn-secondary" onClick={() => setSosAlert(null)}>
-            Ignorer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main App ──
 function AppContent() {
   return (
     <>
-      <GlobalEmergencyListener />
       <Header />
       <ToastContainer />
       <ErrorBoundary>
