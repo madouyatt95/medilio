@@ -7,6 +7,7 @@ import missionService from '../../services/missionService';
 import authService from '../../services/authService';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate, formatRelative } from '../../utils/dateUtils';
+import { DocumentUpload } from '../../components/SharedComponents';
 import {
   ArrowLeft, MapPin, Calendar, Clock, User, Activity,
   FileText, CheckCircle, Send, MessageCircle, Plus
@@ -132,6 +133,14 @@ export default function ProMissionDetail() {
               📞 {patient.phone} — ✉️ {patient.email}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Documents (Secure - Only for Assigned Pro) */}
+      {isAssigned && mission.documents?.length > 0 && (
+        <div className="section">
+          <div className="section-title">Documents médicaux (Ordonnances)</div>
+          <DocumentUpload documents={mission.documents} readonly />
         </div>
       )}
 

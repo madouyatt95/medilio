@@ -22,7 +22,7 @@ export const missionService = {
         age: row.patient_age || null,
         conditions: row.patient_conditions || '',
       },
-      documents: [],
+      documents: row.documents || [],
       applicants: applicants.map(a => ({
         proId: a.pro_id,
         appliedAt: a.applied_at,
@@ -60,6 +60,28 @@ export const missionService = {
   },
 
   async create(missionData) {
+    let uploadedDocs = [];
+    if (missionData.documents && missionData.documents.length > 0) {
+      for (const doc of missionData.documents) {
+        if (!doc.file) continue;
+        const file = doc.file;
+        const ext = file.name.split('.').pop();
+        const path = `${missionData.patientId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('mission_docs')
+          .upload(path, file);
+        
+        if (uploadError) {
+          console.warn('Could not upload document, omitting from mission:', uploadError);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage.from('mission_docs').getPublicUrl(path);
+        uploadedDocs.push({ name: file.name, url: urlData.publicUrl, type: file.type });
+      }
+    }
+
     const { data, error } = await supabase
       .from('missions')
       .insert({
@@ -77,6 +99,7 @@ export const missionService = {
         estimated_duration: missionData.estimatedDuration || 30,
         estimated_cost: missionData.estimatedCost || null,
         recurrence: missionData.recurrence || 'none',
+        documents: uploadedDocs,
       })
       .select()
       .single();

@@ -16,6 +16,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [mission, setMission] = useState(null);
+  const [chatId, setChatId] = useState(null);
   const [otherUser, setOtherUser] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -30,14 +31,26 @@ export default function ChatPage() {
       const otherId = user.role === 'patient' ? m.assignedProId : m.patientId;
       setOtherUser(allUsers.find(u => u.id === otherId));
 
-      const initialMessages = await chatService.getMessages(missionId);
-      setMessages(initialMessages);
+      const convo = await chatService.getConversation(missionId);
+      setChatId(convo.id);
+      setMessages(convo.messages);
       await chatService.markAsRead(missionId, user.id);
     }
     loadData();
-
-    // Polling or listener should be added here
   }, [missionId, user, navigate]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!chatId) return;
+    const unsubscribe = chatService.subscribeToMessages(chatId, (newMsg) => {
+      // Add message if it's not already in the list (sent by ourselves)
+      setMessages(prev => {
+        if (prev.find(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+    });
+    return () => unsubscribe();
+  }, [chatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

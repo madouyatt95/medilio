@@ -153,6 +153,7 @@ export function DocumentUpload({ documents = [], onChange, readonly = false }) {
           type: file.type,
           size: file.size,
           data: reader.result,
+          file: file,
         };
         onChange?.([...documents, doc]);
       };

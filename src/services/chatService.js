@@ -116,6 +116,37 @@ export const chatService = {
         return new Date(bTime) - new Date(aTime);
       });
   },
+
+  // Subscribe to real-time new messages
+  subscribeToMessages(chatId, onNewMessage) {
+    const channel = supabase
+      .channel(`chat_${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `chat_id=eq.${chatId}`
+        },
+        (payload) => {
+          const m = payload.new;
+          onNewMessage({
+            id: m.id,
+            senderId: m.sender_id,
+            senderName: m.sender_name,
+            content: m.content,
+            createdAt: m.created_at,
+            read: m.read,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
 };
 
 export default chatService;
