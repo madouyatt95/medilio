@@ -1,9 +1,9 @@
 // ── Patient Profile ──
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { CITIES } from '../../utils/constants';
-import { User, MapPin, Phone, Mail, Save, LogOut } from 'lucide-react';
+import { User, MapPin, Phone, Mail, Save, LogOut, Edit3 } from 'lucide-react';
 
 export default function PatientProfile() {
   const { user, updateProfile, logout } = useAuth();
@@ -20,7 +20,7 @@ export default function PatientProfile() {
     },
   });
 
-  // Sync state if user data changes (e.g. after refresh or update completion)
+  // Sync state when user data loads/changes
   useEffect(() => {
     if (user) {
       setForm({
@@ -35,7 +35,6 @@ export default function PatientProfile() {
       });
     }
   }, [user]);
-
 
   const update = (key, value) => {
     if (key.startsWith('address.')) {
@@ -58,38 +57,70 @@ export default function PatientProfile() {
 
   return (
     <div className="page-container">
-      <div className="profile-header">
-        <div className="avatar avatar-xl">{user?.firstName?.[0]}{user?.lastName?.[0]}</div>
-        <div className="profile-name">{user?.firstName} {user?.lastName}</div>
-        <div className="profile-role">Patient / Famille</div>
+      {/* Hero Header with background image */}
+      <div style={{
+        marginTop: 'calc(var(--header-height) * -1)',
+        marginLeft: 'calc(var(--content-padding) * -1)',
+        marginRight: 'calc(var(--content-padding) * -1)',
+        height: '200px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, white 100%)' }} />
       </div>
 
+      {/* Avatar + Name - overlapping hero */}
+      <div style={{
+        position: 'relative', zIndex: 3, marginTop: '-70px',
+        textAlign: 'center', paddingBottom: 'var(--space-5)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
+      }}>
+        <div className="avatar avatar-xl" style={{
+          border: '4px solid white', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          marginBottom: 'var(--space-3)', width: '100px', height: '100px', fontSize: '32px'
+        }}>
+          {user?.firstName?.[0] || 'P'}{user?.lastName?.[0] || ''}
+        </div>
+        <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)' }}>
+          {user?.firstName || 'Patient'} {user?.lastName || ''}
+        </h2>
+        <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          Patient / Famille
+        </div>
+      </div>
+
+      {/* Floating Edit/Save Button */}
+      <div style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + 16px)', right: '16px', zIndex: 100 }}>
+        <button
+          className={`btn btn-lg ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`}
+          style={{ borderRadius: '99px', padding: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
+          onClick={() => editing ? handleSave() : setEditing(true)}
+        >
+          {editing ? <Save size={24} /> : <Edit3 size={24} />}
+        </button>
+      </div>
+
+      {/* Personal Info Card */}
       <div className="profile-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-          <div className="profile-section-title" style={{ margin: 0 }}>
-            <User size={18} /> Informations personnelles
-          </div>
-          <button className={`btn btn-sm ${editing ? 'btn-primary btn-glow' : 'btn-secondary'}`}
-            onClick={() => editing ? handleSave() : setEditing(true)}>
-            {editing ? <><Save size={14} /> Sauver</> : 'Modifier'}
-          </button>
+        <div className="profile-section-title">
+          <User size={18} /> Informations personnelles
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="form-label">Prénom</label>
-              <input className="form-input" value={form.firstName} disabled={!editing}
+              <input className="form-input" value={form?.firstName || ''} disabled={!editing}
                 onChange={e => update('firstName', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Nom</label>
-              <input className="form-input" value={form.lastName} disabled={!editing}
+              <input className="form-input" value={form?.lastName || ''} disabled={!editing}
                 onChange={e => update('lastName', e.target.value)} />
             </div>
           </div>
           <div className="form-group">
             <label className="form-label">Téléphone</label>
-            <input className="form-input" value={form.phone} disabled={!editing}
+            <input className="form-input" value={form?.phone || ''} disabled={!editing}
               onChange={e => update('phone', e.target.value)} />
           </div>
           <div className="form-group">
@@ -99,18 +130,19 @@ export default function PatientProfile() {
         </div>
       </div>
 
+      {/* Address Card */}
       <div className="profile-section">
         <div className="profile-section-title"><MapPin size={18} /> Adresse</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div className="form-group">
             <label className="form-label">Rue</label>
-            <input className="form-input" value={form.address.street} disabled={!editing}
+            <input className="form-input" value={form?.address?.street || ''} disabled={!editing}
               onChange={e => update('address.street', e.target.value)} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="form-label">Ville</label>
-              <select className="form-input form-select" value={form.address.city} disabled={!editing}
+              <select className="form-input form-select" value={form?.address?.city || ''} disabled={!editing}
                 onChange={e => update('address.city', e.target.value)}>
                 <option value="">Sélectionner</option>
                 {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -118,7 +150,7 @@ export default function PatientProfile() {
             </div>
             <div className="form-group">
               <label className="form-label">Code postal</label>
-              <input className="form-input" value={form.address.postalCode} disabled={!editing}
+              <input className="form-input" value={form?.address?.postalCode || ''} disabled={!editing}
                 onChange={e => update('address.postalCode', e.target.value)} />
             </div>
           </div>
