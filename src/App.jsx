@@ -81,26 +81,45 @@ function Header() {
   const { unreadCount } = useNotifications();
   const [showNotifs, setShowNotifs] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Don't show header on landing, login, register
   const hiddenPaths = ['/', '/login', '/register'];
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('create-mission')) return null;
 
+  const profilePath = user?.role === 'patient' ? '/patient/profile' : user?.role === 'professional' ? '/pro/profile' : null;
+
   return (
     <>
       <header className="header">
         <div className="header-logo">
           <div className="header-logo-icon"><Activity size={20} /></div>
-          Medilio
+          <span>Medilio</span>
         </div>
         <div className="header-actions">
           <button className="header-notif-btn" onClick={() => setShowNotifs(!showNotifs)}>
             <Bell size={20} />
             {unreadCount > 0 && <span className="header-notif-badge">{unreadCount}</span>}
           </button>
-          <div className="avatar avatar-sm" style={{ cursor: 'pointer' }}>
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          {/* Avatar with photo support */}
+          <div
+            onClick={() => profilePath && navigate(profilePath)}
+            style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              overflow: 'hidden', cursor: 'pointer',
+              border: '2px solid rgba(255,255,255,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: user?.avatar
+                ? `url(${user.avatar}) center/cover`
+                : 'rgba(255,255,255,0.2)',
+              color: 'white', fontWeight: 700, fontSize: '13px',
+              transition: 'transform 0.2s ease, border-color 0.2s ease',
+            }}
+            onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.borderColor = 'white'; }}
+            onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}
+          >
+            {!user?.avatar && <span>{user?.firstName?.[0]}{user?.lastName?.[0]}</span>}
           </div>
         </div>
       </header>

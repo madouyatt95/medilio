@@ -53,6 +53,14 @@ export default function PatientDashboard() {
 
   return (
     <div className="page-container">
+      {/* Greeting (below dark header) */}
+      <div className="dashboard-greeting" style={{ marginBottom: 'var(--space-5)', paddingTop: 'var(--space-2)' }}>
+        <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
+          Bonjour, {user?.firstName} 👋
+        </h1>
+        <p style={{ color: 'var(--text-secondary)' }}>Comment pouvons-nous vous aider aujourd'hui ?</p>
+      </div>
+
       {/* Search Bar (mockup style) */}
       <div style={{ marginBottom: 'var(--space-6)' }}>
         <div style={{
