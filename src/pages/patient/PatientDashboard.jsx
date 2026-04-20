@@ -195,6 +195,8 @@ export default function PatientDashboard() {
             ))}
           </div>
         </div>
+      )}
+
       {/* Upcoming Missions (Standard Card style) */}
       <div className="section animate-fadeInUp" style={{ animationDelay: '400ms' }}>
         <div className="section-title">
