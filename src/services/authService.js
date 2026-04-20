@@ -1,5 +1,6 @@
-// ── Auth Service (Supabase) ──
+// ── Auth Service (Hybrid Supabase/Local Demo) ──
 import supabase from '../lib/supabase';
+import storageService from './storageService';
 
 export const authService = {
   async register({ email, password, role, firstName, lastName, phone }) {
@@ -45,6 +46,20 @@ export const authService = {
   },
 
   async login(email, password) {
+    // ── Demo Fallback ──
+    const demoUsers = storageService.getUsers();
+    const demoUser = demoUsers.find(u => u.email === email);
+    
+    if (demoUser) {
+      // Basic check: demo password is btoa(raw) in seeder
+      if (demoUser.password === btoa(password)) {
+        storageService.setCurrentUser(demoUser);
+        return demoUser;
+      }
+      throw new Error('Identifiants de démonstration invalides.');
+    }
+
+    // ── Supabase Login ──
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -57,8 +72,9 @@ export const authService = {
   },
 
   async logout() {
+    storageService.clearCurrentUser();
     const { error } = await supabase.auth.signOut();
-    if (error) throw new Error(error.message);
+    // No throw on signout error to allow local logout even if offline
   },
 
   async getCurrentSession() {
@@ -67,12 +83,21 @@ export const authService = {
   },
 
   async getCurrentUser() {
+    // Check local demo session first
+    const localUser = storageService.getCurrentUser();
+    if (localUser) return localUser;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     return this.getProfile(user.id);
   },
 
   async getProfile(userId) {
+    // Check local demo users first
+    const demoUsers = storageService.getUsers();
+    const demoProfile = demoUsers.find(u => u.id === userId);
+    if (demoProfile) return demoProfile;
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')

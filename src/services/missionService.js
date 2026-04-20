@@ -1,5 +1,6 @@
-// ── Mission Service (Supabase) ──
+// ── Mission Service (Hybrid Supabase/Local Demo) ──
 import supabase from '../lib/supabase';
+import storageService from './storageService';
 
 export const missionService = {
   // ── Helper: Map DB row to app format ──
@@ -139,6 +140,10 @@ export const missionService = {
   },
 
   async getAll() {
+    // ── Local Demo Missions ──
+    const localMissions = storageService.getMissions();
+
+    // ── Supabase Missions ──
     const { data, error } = await supabase
       .from('missions')
       .select('*')
@@ -146,12 +151,18 @@ export const missionService = {
 
     if (error) throw new Error(error.message);
 
-    // Fetch applicants and notes for each mission
-    const missions = await Promise.all((data || []).map(m => this._fetchFull(m)));
-    return missions;
+    const remoteMissions = await Promise.all((data || []).map(m => this._fetchFull(m)));
+    
+    // Merge: Demo missions usually have different UUIDs than Supabase ones
+    return [...localMissions, ...remoteMissions].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
   },
 
   async getById(id) {
+    const local = storageService.getMissions().find(m => m.id === id);
+    if (local) return local;
+
     const { data, error } = await supabase
       .from('missions')
       .select('*')
@@ -163,6 +174,8 @@ export const missionService = {
   },
 
   async getByPatient(patientId) {
+    const locals = storageService.getMissions().filter(m => m.patientId === patientId);
+
     const { data, error } = await supabase
       .from('missions')
       .select('*')
@@ -170,10 +183,14 @@ export const missionService = {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return Promise.all((data || []).map(m => this._fetchFull(m)));
+    const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
+    
+    return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getByProfessional(proId) {
+    const locals = storageService.getMissions().filter(m => m.assignedProId === proId);
+
     const { data, error } = await supabase
       .from('missions')
       .select('*')
@@ -181,7 +198,9 @@ export const missionService = {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return Promise.all((data || []).map(m => this._fetchFull(m)));
+    const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
+
+    return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getOpenMissions() {

@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_seeded';
+const DEMO_SEEDED_KEY = 'medilio_demo_v2';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;

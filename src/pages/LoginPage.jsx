@@ -14,12 +14,28 @@ export default function LoginPage() {
     e.preventDefault();
     clearError();
     try {
-      const user = await login(email, password);
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'professional') navigate('/pro/dashboard');
+      const u = await login(email, password);
+      if (u.role === 'admin') navigate('/admin');
+      else if (u.role === 'professional') navigate('/pro/dashboard');
       else navigate('/patient/dashboard');
     } catch {
       // error is set in context
+    }
+  };
+
+  const handleQuickLogin = async (e, qEmail, qPassword) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEmail(qEmail);
+    setPassword(qPassword);
+    clearError();
+    try {
+      const u = await login(qEmail, qPassword);
+      if (u.role === 'admin') navigate('/admin');
+      else if (u.role === 'professional') navigate('/pro/dashboard');
+      else navigate('/patient/dashboard');
+    } catch (err) {
+      console.error('Quick login failed', err);
     }
   };
 
@@ -110,21 +126,21 @@ export default function LoginPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button 
               className="btn btn-sm btn-secondary btn-block" 
-              onClick={() => { setEmail('famille.dupont@email.fr'); setPassword('patient123'); }}
+              onClick={(e) => handleQuickLogin(e, 'famille.dupont@email.fr', 'patient123')}
               style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
             >
               👩‍🦱 Marie (Patient)
             </button>
             <button 
               className="btn btn-sm btn-secondary btn-block" 
-              onClick={() => { setEmail('lucas.infirmier@email.fr'); setPassword('pro123'); }}
+              onClick={(e) => handleQuickLogin(e, 'lucas.infirmier@email.fr', 'pro123')}
               style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
             >
               👨‍⚕️ Lucas (Infirmier)
             </button>
             <button 
               className="btn btn-sm btn-secondary btn-block" 
-              onClick={() => { setEmail('admin@medilio.fr'); setPassword('admin123'); }}
+              onClick={(e) => handleQuickLogin(e, 'admin@medilio.fr', 'admin123')}
               style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
             >
               🛠 Admin
