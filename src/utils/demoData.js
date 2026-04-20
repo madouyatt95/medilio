@@ -8,10 +8,12 @@ export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
 
   const now = new Date();
-  const tomorrow = new Date(now.getTime() + 86400000);
-  const nextWeek = new Date(now.getTime() + 7 * 86400000);
-  const yesterday = new Date(now.getTime() - 86400000);
-  const lastWeek = new Date(now.getTime() - 7 * 86400000);
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const tomorrow = new Date(dayStart.getTime() + 86400000);
+  const nextWeek = new Date(dayStart.getTime() + 7 * 86400000);
+  const yesterday = new Date(dayStart.getTime() - 86400000);
+  const lastWeek = new Date(dayStart.getTime() - 7 * 86400000);
 
   // ── Admin User ──
   const admin = {
@@ -57,20 +59,6 @@ export function seedDemoData() {
     professionalInfo: null,
   };
 
-  const patient3 = {
-    id: uuidv4(),
-    email: 'sophie.bernard@email.fr',
-    password: btoa('patient123'),
-    role: 'patient',
-    firstName: 'Sophie',
-    lastName: 'Bernard',
-    phone: '06 11 22 33 44',
-    avatar: null,
-    createdAt: yesterday.toISOString(),
-    address: { street: '22 Boulevard Gambetta', city: 'Marseille', postalCode: '13001' },
-    professionalInfo: null,
-  };
-
   // ── Professionals ──
   const pro1 = {
     id: uuidv4(),
@@ -87,52 +75,12 @@ export function seedDemoData() {
       specialties: ['Infirmier(e) diplômé(e)'],
       serviceArea: { city: 'Paris', radius: 25 },
       availability: { days: ['lun', 'mar', 'mer', 'jeu', 'ven'], hours: { start: '07:00', end: '19:00' } },
-      bio: 'Infirmière diplômée avec 8 ans d\'expérience en soins à domicile. Spécialisée en gériatrie et soins palliatifs.',
+      bio: 'Infirmière diplômée avec 8 ans d\'expérience en soins à domicile.',
       verified: true,
     },
   };
 
-  const pro2 = {
-    id: uuidv4(),
-    email: 'thomas.aide@email.fr',
-    password: btoa('pro123'),
-    role: 'professional',
-    firstName: 'Thomas',
-    lastName: 'Petit',
-    phone: '06 77 88 99 00',
-    avatar: null,
-    createdAt: lastWeek.toISOString(),
-    address: { street: '12 Rue Bellecour', city: 'Lyon', postalCode: '69002' },
-    professionalInfo: {
-      specialties: ['Aide-soignant(e)', 'Auxiliaire de vie'],
-      serviceArea: { city: 'Lyon', radius: 30 },
-      availability: { days: ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam'], hours: { start: '06:00', end: '20:00' } },
-      bio: 'Aide-soignant passionné, 5 ans d\'expérience. Je prends soin de vos proches comme de ma propre famille.',
-      verified: true,
-    },
-  };
-
-  const pro3 = {
-    id: uuidv4(),
-    email: 'emma.kine@email.fr',
-    password: btoa('pro123'),
-    role: 'professional',
-    firstName: 'Emma',
-    lastName: 'Laurent',
-    phone: '06 44 55 66 77',
-    avatar: null,
-    createdAt: yesterday.toISOString(),
-    address: { street: '3 Cours Mirabeau', city: 'Marseille', postalCode: '13100' },
-    professionalInfo: {
-      specialties: ['Kinésithérapeute'],
-      serviceArea: { city: 'Marseille', radius: 20 },
-      availability: { days: ['lun', 'mar', 'jeu', 'ven'], hours: { start: '08:00', end: '17:00' } },
-      bio: 'Kinésithérapeute spécialisée en rééducation post-opératoire. Approche douce et personnalisée.',
-      verified: false,
-    },
-  };
-
-  const pro4 = {
+  const proLucas = {
     id: uuidv4(),
     email: 'lucas.infirmier@email.fr',
     password: btoa('pro123'),
@@ -141,176 +89,137 @@ export function seedDemoData() {
     lastName: 'Dubois',
     phone: '06 33 22 11 00',
     avatar: null,
-    createdAt: yesterday.toISOString(),
+    createdAt: lastWeek.toISOString(),
     address: { street: '7 Rue Nationale', city: 'Paris', postalCode: '75013' },
     professionalInfo: {
-      specialties: ['Infirmier(e) diplômé(e)', 'Sage-femme'],
-      serviceArea: { city: 'Paris', radius: 15 },
-      availability: { days: ['lun', 'mer', 'ven', 'sam', 'dim'], hours: { start: '08:00', end: '22:00' } },
-      bio: 'Infirmier urgentiste reconverti en soins à domicile. Disponible en soirée et week-ends.',
+      specialties: ['Infirmier(e) diplômé(e)', 'Urgentiste'],
+      serviceArea: { city: 'Paris', radius: 20 },
+      availability: { days: ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'], hours: { start: '08:00', end: '22:00' } },
+      bio: 'Infirmier expert en soins complexes et logistique de tournée. Disponible 7j/7.',
       verified: true,
     },
   };
 
-  const users = [admin, patient1, patient2, patient3, pro1, pro2, pro3, pro4];
+  const users = [admin, patient1, patient2, pro1, proLucas];
 
-  // ── Missions ──
-  const missions = [
+  // ── Today's Date String ──
+  const todayStr = dayStart.toISOString().split('T')[0];
+
+  // ── Missions for Lucas (Tour Simulation) ──
+  const tourMissions = [
     {
       id: uuidv4(),
       patientId: patient1.id,
-      status: 'open',
+      status: 'assigned',
       careType: 'injection',
-      description: 'Injection quotidienne d\'anticoagulant pour ma mère de 78 ans. Elle est à mobilité réduite.',
+      description: 'Injection insuline matinale.',
       address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
-      scheduledDate: tomorrow.toISOString().split('T')[0],
-      scheduledTime: '09:00',
-      patientInfo: { name: 'Jeanne Dupont', age: 78, conditions: 'Mobilité réduite, diabète type 2' },
-      documents: [],
-      applicants: [
-        { proId: pro1.id, appliedAt: now.toISOString(), message: 'Je suis disponible et j\'ai l\'expérience nécessaire.' },
-        { proId: pro4.id, appliedAt: now.toISOString(), message: 'Disponible demain matin.' },
-      ],
-      assignedProId: null,
+      scheduledDate: todayStr,
+      scheduledTime: '08:30',
+      patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Diabète' },
+      assignedProId: proLucas.id,
       careNotes: [],
-      createdAt: now.toISOString(),
-      completedAt: null,
-      estimatedDuration: 30,
-      estimatedCost: 25,
+      createdAt: yesterday.toISOString(),
+      estimatedCost: 20,
+    },
+    {
+      id: uuidv4(),
+      patientId: patient2.id,
+      status: 'assigned',
+      careType: 'bandage',
+      description: 'Changement de pansement post-op.',
+      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' }, // In reality closer to Lucas area
+      scheduledDate: todayStr,
+      scheduledTime: '10:00',
+      patientInfo: { name: 'Jean Martin', age: 62, conditions: 'Post-op genou' },
+      assignedProId: proLucas.id,
+      careNotes: [],
+      createdAt: yesterday.toISOString(),
+      estimatedCost: 35,
     },
     {
       id: uuidv4(),
       patientId: patient1.id,
       status: 'assigned',
-      careType: 'bandage',
-      description: 'Changement de pansement post-opératoire. Plaie au genou droit.',
-      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
-      scheduledDate: nextWeek.toISOString().split('T')[0],
-      scheduledTime: '14:00',
-      patientInfo: { name: 'Jeanne Dupont', age: 78, conditions: 'Post-opératoire genou' },
-      documents: [],
-      applicants: [{ proId: pro1.id, appliedAt: lastWeek.toISOString(), message: '' }],
-      assignedProId: pro1.id,
-      careNotes: [],
-      createdAt: lastWeek.toISOString(),
-      completedAt: null,
-      estimatedDuration: 45,
-      estimatedCost: 35,
-    },
-    {
-      id: uuidv4(),
-      patientId: patient2.id,
-      status: 'completed',
-      careType: 'hygiene',
-      description: 'Aide à la toilette pour personne âgée. Mon père a besoin d\'assistance quotidienne.',
-      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' },
-      scheduledDate: lastWeek.toISOString().split('T')[0],
-      scheduledTime: '08:00',
-      patientInfo: { name: 'Robert Martin', age: 85, conditions: 'Alzheimer stade précoce' },
-      documents: [],
-      applicants: [{ proId: pro2.id, appliedAt: lastWeek.toISOString(), message: '' }],
-      assignedProId: pro2.id,
-      careNotes: [{
-        id: uuidv4(),
-        proId: pro2.id,
-        content: 'Toilette effectuée sans difficulté. Patient coopératif et de bonne humeur. Surveillance tensionnelle : 13/8. RAS.',
-        createdAt: lastWeek.toISOString(),
-      }],
-      createdAt: lastWeek.toISOString(),
-      completedAt: lastWeek.toISOString(),
-      estimatedDuration: 60,
-      estimatedCost: 40,
-    },
-    {
-      id: uuidv4(),
-      patientId: patient2.id,
-      status: 'open',
       careType: 'monitoring',
-      description: 'Surveillance post-hospitalisation. Prise de constantes et vérification de l\'état général.',
-      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' },
-      scheduledDate: tomorrow.toISOString().split('T')[0],
-      scheduledTime: '10:30',
-      patientInfo: { name: 'Robert Martin', age: 85, conditions: 'Retour d\'hospitalisation' },
-      documents: [],
-      applicants: [],
-      assignedProId: null,
-      careNotes: [],
-      createdAt: now.toISOString(),
-      completedAt: null,
-      estimatedDuration: 45,
-      estimatedCost: 30,
-    },
-    {
-      id: uuidv4(),
-      patientId: patient3.id,
-      status: 'open',
-      careType: 'rehabilitation',
-      description: 'Séance de rééducation à domicile suite à une fracture du col du fémur.',
-      address: { street: '22 Boulevard Gambetta', city: 'Marseille', postalCode: '13001' },
-      scheduledDate: nextWeek.toISOString().split('T')[0],
-      scheduledTime: '15:00',
-      patientInfo: { name: 'Pierre Bernard', age: 72, conditions: 'Fracture col du fémur, 6 semaines post-op' },
-      documents: [],
-      applicants: [{ proId: pro3.id, appliedAt: now.toISOString(), message: 'Spécialisée en rééduc post-fracture.' }],
-      assignedProId: null,
+      description: 'Check des constantes après midi.',
+      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
+      scheduledDate: todayStr,
+      scheduledTime: '14:30',
+      patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Suivi' },
+      assignedProId: proLucas.id,
       careNotes: [],
       createdAt: yesterday.toISOString(),
-      completedAt: null,
-      estimatedDuration: 60,
-      estimatedCost: 50,
+      estimatedCost: 25,
     },
     {
       id: uuidv4(),
-      patientId: patient3.id,
-      status: 'completed',
-      careType: 'medication',
-      description: 'Préparation du pilulier hebdomadaire et vérification des traitements.',
-      address: { street: '22 Boulevard Gambetta', city: 'Marseille', postalCode: '13001' },
-      scheduledDate: lastWeek.toISOString().split('T')[0],
-      scheduledTime: '11:00',
-      patientInfo: { name: 'Pierre Bernard', age: 72, conditions: 'Polymédiqué' },
-      documents: [],
-      applicants: [{ proId: pro3.id, appliedAt: lastWeek.toISOString(), message: '' }],
-      assignedProId: pro3.id,
-      careNotes: [{
-        id: uuidv4(),
-        proId: pro3.id,
-        content: 'Pilulier préparé pour la semaine. Vérification des interactions : RAS. Patient comprend bien son traitement.',
-        createdAt: lastWeek.toISOString(),
-      }],
-      createdAt: lastWeek.toISOString(),
-      completedAt: lastWeek.toISOString(),
-      estimatedDuration: 30,
-      estimatedCost: 20,
-    },
+      patientId: patient2.id,
+      status: 'assigned',
+      careType: 'hygiene',
+      description: 'Aide à la toilette du soir.',
+      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' },
+      scheduledDate: todayStr,
+      scheduledTime: '19:00',
+      patientInfo: { name: 'Jean Martin', age: 62, conditions: 'Mobilité réduite' },
+      assignedProId: proLucas.id,
+      careNotes: [],
+      createdAt: yesterday.toISOString(),
+      estimatedCost: 40,
+    }
   ];
+
+  // ── Historical Record for Marie Dupont (Patient Record Simulation) ──
+  const historicalMissions = [
+    {
+      id: uuidv4(),
+      patientId: patient1.id,
+      status: 'completed',
+      careType: 'monitoring',
+      description: 'Bilan initial',
+      address: patient1.address,
+      scheduledDate: lastWeek.toISOString().split('T')[0],
+      scheduledTime: '10:00',
+      assignedProId: pro1.id,
+      careNotes: [{
+        id: uuidv4(), proId: pro1.id, 
+        content: "Première visite. Constantes stables : TA 12/8, Pouls 72. La patiente semble bien réagir au traitement.",
+        createdAt: lastWeek.toISOString()
+      }],
+      completedAt: lastWeek.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      patientId: patient1.id,
+      status: 'completed',
+      careType: 'injection',
+      description: 'Injection hebdo',
+      address: patient1.address,
+      scheduledDate: yesterday.toISOString().split('T')[0],
+      scheduledTime: '09:00',
+      assignedProId: proLucas.id,
+      careNotes: [{
+        id: uuidv4(), proId: proLucas.id, 
+        content: "Injection faite sans douleur. Pas de rougeur au point de ponction. RAS.",
+        createdAt: yesterday.toISOString()
+      }],
+      completedAt: yesterday.toISOString(),
+    }
+  ];
+
+  const allMissions = [...tourMissions, ...historicalMissions];
 
   // ── Notifications ──
   const notifications = [
     {
       id: uuidv4(), userId: patient1.id, type: 'pro_applied',
-      title: 'Nouvelle candidature', message: 'Claire Moreau a postulé pour votre mission d\'injection.',
-      read: false, link: '', createdAt: now.toISOString(),
-    },
-    {
-      id: uuidv4(), userId: patient1.id, type: 'pro_applied',
-      title: 'Nouvelle candidature', message: 'Lucas Dubois a postulé pour votre mission d\'injection.',
-      read: false, link: '', createdAt: now.toISOString(),
-    },
-    {
-      id: uuidv4(), userId: pro1.id, type: 'mission_created',
-      title: 'Nouvelle mission disponible', message: 'Une mission d\'injection est disponible à Paris.',
-      read: true, link: '', createdAt: now.toISOString(),
-    },
-    {
-      id: uuidv4(), userId: pro2.id, type: 'mission_accepted',
-      title: 'Mission acceptée !', message: 'Votre candidature pour l\'aide à la toilette a été acceptée.',
-      read: true, link: '', createdAt: lastWeek.toISOString(),
-    },
+      title: 'Nouvelle candidature', message: 'Claire Moreau a postulé pour votre mission.',
+      read: false, createdAt: now.toISOString(),
+    }
   ];
 
   storageService.setUsers(users);
-  storageService.setMissions(missions);
+  storageService.setMissions(allMissions);
   storageService.setNotifications(notifications);
   localStorage.setItem(DEMO_SEEDED_KEY, 'true');
 }

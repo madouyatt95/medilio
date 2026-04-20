@@ -100,14 +100,36 @@ export default function LoginPage() {
 
         <div className="auth-divider">ou</div>
 
-        <div style={{
-          background: 'var(--bg-body)', borderRadius: 'var(--radius-md)',
-          padding: 'var(--space-4)', fontSize: 'var(--font-xs)', color: 'var(--text-secondary)',
+        <div className="glass-panel" style={{
+          padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)',
+          marginTop: 'var(--space-4)'
         }}>
-          <strong style={{ display: 'block', marginBottom: 4 }}>Comptes démo :</strong>
-          <div>Patient : famille.dupont@email.fr / patient123</div>
-          <div>Pro : claire.infirmiere@email.fr / pro123</div>
-          <div>Admin : admin@medilio.fr / admin123</div>
+          <strong style={{ display: 'block', marginBottom: 'var(--space-3)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>
+            ⚡️ Connexion Instantanée (Mode Démo)
+          </strong>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button 
+              className="btn btn-sm btn-secondary btn-block" 
+              onClick={() => { setEmail('famille.dupont@email.fr'); setPassword('patient123'); }}
+              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
+            >
+              👩‍🦱 Marie (Patient)
+            </button>
+            <button 
+              className="btn btn-sm btn-secondary btn-block" 
+              onClick={() => { setEmail('lucas.infirmier@email.fr'); setPassword('pro123'); }}
+              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
+            >
+              👨‍⚕️ Lucas (Infirmier)
+            </button>
+            <button 
+              className="btn btn-sm btn-secondary btn-block" 
+              onClick={() => { setEmail('admin@medilio.fr'); setPassword('admin123'); }}
+              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
+            >
+              🛠 Admin
+            </button>
+          </div>
         </div>
 
         <div className="auth-footer">

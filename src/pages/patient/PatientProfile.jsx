@@ -155,6 +155,26 @@ export default function PatientProfile() {
         </div>
       </div>
 
+      <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-4)', borderTop: '1px solid var(--border-color)' }}>
+        <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textAlign: 'center' }}>
+          Outils Développeur
+        </p>
+        <button 
+          className="btn btn-sm btn-secondary btn-block" 
+          style={{ background: 'white', color: 'var(--text-secondary)' }}
+          onClick={() => {
+            if (window.confirm("Réinitialiser toutes les données vers le scénario de démonstration ?")) {
+              import('../../utils/demoData').then(m => {
+                m.resetDemoData();
+                window.location.reload();
+              });
+            }
+          }}
+        >
+          Réinitialiser le scénario de démo
+        </button>
+      </div>
+
       <button className="btn btn-ghost btn-block" style={{ color: 'var(--color-danger)', marginTop: 'var(--space-4)' }}
         onClick={logout}>
         <LogOut size={18} /> Se déconnecter
