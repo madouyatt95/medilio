@@ -35,7 +35,6 @@ export default function ProDashboard() {
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
   return (
-  return (
     <div className="page-container" style={{ paddingTop: 'var(--space-8)' }}>
       <div className="dashboard-greeting animate-fadeIn" style={{ marginBottom: 'var(--space-8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
