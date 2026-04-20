@@ -359,6 +359,10 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    seedDemoData();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
