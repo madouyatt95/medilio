@@ -54,64 +54,94 @@ export default function PatientDashboard() {
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
   return (
-    <div className="page-container">
-      {/* Greeting (below dark header) */}
-      <div className="dashboard-greeting" style={{ marginBottom: 'var(--space-5)', paddingTop: 'var(--space-2)' }}>
-        <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>
-          Bonjour, {user?.firstName} 👋
-        </h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Comment pouvons-nous vous aider aujourd'hui ?</p>
+    <div className="page-container" style={{ paddingTop: 'var(--space-8)' }}>
+      {/* Greeting (Premium Header style) */}
+      <div className="dashboard-greeting animate-fadeIn" style={{ marginBottom: 'var(--space-8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
+          <div className="avatar-lg" style={{ border: '2px solid white', boxShadow: 'var(--shadow-lg)' }}>
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          </div>
+          <div>
+            <h1 style={{ fontSize: 'var(--font-3xl)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              Bonjour, {user?.firstName} 👋
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-sm)' }}>
+              Prêt pour votre prochain soin ?
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Search Bar (mockup style) */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', background: '#FFFFFF', padding: '14px 20px',
-          borderRadius: 'var(--radius-lg)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-          border: '1px solid var(--border-color)', gap: '12px'
+      {/* Global Search Bar (Glass style) */}
+      <div className="animate-fadeInUp" style={{ marginBottom: 'var(--space-10)', animationDelay: '100ms' }}>
+        <div className="glass-panel" style={{
+          display: 'flex', alignItems: 'center', padding: '16px 24px',
+          borderRadius: 'var(--radius-xl)', gap: '16px', cursor: 'text'
         }}>
-          <Search size={20} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--font-base)' }}>
-            Rechercher un soin, un professionnel...
-          </span>
+          <Search size={22} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+          <input 
+            type="text" 
+            placeholder="Rechercher un soin, un infirmier..." 
+            style={{ 
+              background: 'transparent', border: 'none', outline: 'none', 
+              width: '100%', fontSize: 'var(--font-base)', fontWeight: 500,
+              color: 'var(--text-primary)'
+            }} 
+          />
         </div>
       </div>
 
       {/* Categories of Care — pastel colored cards with emoji icons like mockup */}
-      <div className="section">
-        <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, marginBottom: 'var(--space-4)' }}>
-          Catégories de soins
-        </h2>
+      <div className="section animate-fadeInUp" style={{ animationDelay: '200ms' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
+          <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800 }}>Nos expertises</h2>
+          <button className="btn btn-ghost btn-sm" style={{ padding: 0 }}>Tout voir</button>
+        </div>
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-3)',
-          overflowX: 'auto', scrollbarWidth: 'none'
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-4)'
         }}>
           {CARE_CARDS.map(card => (
             <div
               key={card.id}
               onClick={() => navigate('/patient/create-mission')}
+              className="glass-card"
               style={{
-                background: card.gradient,
                 borderRadius: 'var(--radius-xl)',
-                padding: 'var(--space-4)',
+                padding: 'var(--space-5)',
                 cursor: 'pointer',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--space-2)',
-                minHeight: '130px',
+                gap: 'var(--space-3)',
+                minHeight: '140px',
                 position: 'relative',
                 overflow: 'hidden',
+                background: `linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4))`,
               }}
-              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
-              onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }}
+              onMouseOver={e => { 
+                e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+              }}
+              onMouseOut={e => { 
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(31, 38, 135, 0.07)';
+              }}
             >
-              <div style={{ fontSize: '40px', lineHeight: 1 }}>{card.emoji}</div>
-              <div style={{ marginTop: 'auto' }}>
-                <div style={{ fontWeight: 700, fontSize: 'var(--font-base)', color: card.color }}>{card.label}</div>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'rgba(0,0,0,0.5)', fontWeight: 500 }}>{card.sub}</div>
+              <div className="animate-float" style={{ 
+                fontSize: '44px', lineHeight: 1, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.1))`
+              }}>
+                {card.emoji}
               </div>
+              <div style={{ marginTop: 'auto' }}>
+                <div style={{ fontWeight: 800, fontSize: 'var(--font-base)', color: card.color }}>{card.label}</div>
+                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>{card.sub}</div>
+              </div>
+              {/* Subtle background glow based on category color */}
+              <div style={{
+                position: 'absolute', bottom: '-20%', right: '-20%', width: '60%', height: '60%',
+                background: card.color, opacity: 0.1, filter: 'blur(30px)', borderRadius: '50%',
+                pointerEvents: 'none'
+              }} />
             </div>
           ))}
         </div>
@@ -119,79 +149,54 @@ export default function PatientDashboard() {
 
       {/* Featured Professionals — card carousel like mockup */}
       {featuredPros.length > 0 && (
-        <div className="section">
+        <div className="section animate-fadeInUp" style={{ animationDelay: '300ms' }}>
           <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, marginBottom: 'var(--space-4)' }}>
-            Professionnels recommandés
+            Les mieux notés
           </h2>
           <div style={{
-            display: 'flex', overflowX: 'auto', gap: 'var(--space-3)',
-            paddingBottom: 'var(--space-2)',
+            display: 'flex', overflowX: 'auto', gap: 'var(--space-4)',
+            paddingBottom: 'var(--space-4)',
             margin: '0 calc(var(--content-padding) * -1)',
             paddingLeft: 'var(--content-padding)',
             paddingRight: 'var(--content-padding)',
             scrollbarWidth: 'none',
           }}>
-            {featuredPros.map((pro, i) => {
-              const gradients = [
-                'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)',
-                'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
-                'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)',
-                'linear-gradient(135deg, #FCE7F3 0%, #FBCFE8 100%)',
-              ];
-              return (
-                <div key={pro.id} onClick={() => navigate('/patient/create-mission')}
-                  style={{
-                    minWidth: '170px', maxWidth: '170px',
-                    background: gradients[i % gradients.length],
-                    padding: 'var(--space-4)', borderRadius: 'var(--radius-xl)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    textAlign: 'center', cursor: 'pointer',
-                    transition: 'transform 0.2s ease',
-                  }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
-                >
-                  <div className="avatar avatar-lg" style={{
-                    marginBottom: 'var(--space-2)',
-                    border: '3px solid white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  }}>
-                    {pro.firstName?.[0]}{pro.lastName?.[0]}
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>
-                    {pro.firstName} {pro.lastName?.[0]}.
-                  </div>
-                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
-                    {pro.professionalInfo?.specialties?.[0] || 'Généraliste'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: 'var(--space-3)' }}>
-                    <Star size={14} fill="#F59E0B" color="#F59E0B" />
-                    <span style={{ fontWeight: 700, fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>
-                      {pro.ratingCount > 0 ? pro.ratingAvg : 'Nouveau'}
-                    </span>
-                    {pro.ratingCount > 0 && (
-                      <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
-                        ({pro.ratingCount})
-                      </span>
-                    )}
-                  </div>
-                  <button className="btn btn-sm btn-secondary" style={{
-                    borderRadius: 'var(--radius-full)', fontSize: 'var(--font-xs)',
-                    padding: '6px 16px', width: '100%',
-                  }}>
-                    Réserver
-                  </button>
+            {featuredPros.map((pro, i) => (
+              <div key={pro.id} onClick={() => navigate('/patient/create-mission')}
+                className="glass-card"
+                style={{
+                  minWidth: '220px', maxWidth: '220px',
+                  padding: 'var(--space-5)', borderRadius: 'var(--radius-xl)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  textAlign: 'center', cursor: 'pointer',
+                  border: '1.5px solid rgba(255,255,255,0.4)',
+                  transition: 'transform 0.3s ease'
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <div className="avatar-xl" style={{ 
+                  marginBottom: 'var(--space-3)', border: '3px solid white', 
+                  boxShadow: 'var(--shadow-md)' 
+                }}>
+                  {pro.firstName?.[0]}{pro.lastName?.[0]}
                 </div>
-              );
-            })}
+                <div style={{ fontWeight: 800, fontSize: 'var(--font-base)', marginBottom: 2 }}>
+                  {pro.firstName} {pro.lastName}
+                </div>
+                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
+                  {pro.professionalInfo?.specialties?.[0] || 'Infirmier'}
+                </div>
+                <div className="glass-pill" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Star size={14} fill="currentColor" style={{ color: '#F59E0B' }} />
+                  <span style={{ fontWeight: 800, fontSize: 'var(--font-sm)' }}>{pro.ratingAvg}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      )}
-
-      {/* Upcoming Missions */}
-      <div className="section">
+      {/* Upcoming Missions (Standard Card style) */}
+      <div className="section animate-fadeInUp" style={{ animationDelay: '400ms' }}>
         <div className="section-title">
           <span>Missions à venir</span>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/patient/missions')}>
