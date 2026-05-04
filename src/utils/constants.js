@@ -31,14 +31,19 @@ export const MISSION_STATUS_COLORS = {
 };
 
 export const CARE_TYPES = [
-  { id: 'injection', label: 'Injection', icon: 'Syringe', description: 'Injections et perfusions' },
-  { id: 'bandage', label: 'Pansement', icon: 'Bandage', description: 'Soins de plaies et pansements' },
-  { id: 'hygiene', label: 'Toilette', icon: 'ShowerHead', description: 'Aide à la toilette et hygiène' },
-  { id: 'monitoring', label: 'Surveillance', icon: 'Activity', description: 'Surveillance et suivi médical' },
-  { id: 'medication', label: 'Médicaments', icon: 'Pill', description: 'Administration de médicaments' },
-  { id: 'rehabilitation', label: 'Rééducation', icon: 'Dumbbell', description: 'Exercices et rééducation' },
-  { id: 'palliative', label: 'Soins palliatifs', icon: 'Heart', description: 'Accompagnement et confort' },
-  { id: 'other', label: 'Autre', icon: 'Plus', description: 'Autre type de soin' },
+  { id: 'blood_test', label: 'Prise de sang', icon: 'Droplet', description: 'Prélèvement sanguin à domicile' },
+  { id: 'bandage', label: 'Pansement', icon: 'Bandage', description: 'Changement de pansement, soins de plaie' },
+  { id: 'injection', label: 'Injection / Vaccin', icon: 'Syringe', description: 'Injections (sous-cutanée, intramusculaire...)' },
+  { id: 'hygiene', label: 'Aide à la toilette', icon: 'ShowerHead', description: 'Aide complète ou partielle à la toilette' },
+  { id: 'sutures', label: 'Fils et Agrafes', icon: 'Scissors', description: 'Ablation de fils ou d\'agrafes' },
+  { id: 'infusion', label: 'Perfusion', icon: 'Droplets', description: 'Pose et surveillance de perfusion' },
+  { id: 'diabetes', label: 'Soins diabétiques', icon: 'Activity', description: 'Insuline, glycémie capillaire' },
+  { id: 'catheter', label: 'Sondage urinaire', icon: 'TestTube', description: 'Pose, changement ou retrait de sonde' },
+  { id: 'respiratory', label: 'Soins respiratoires', icon: 'Wind', description: 'Aérosols, oxygénothérapie' },
+  { id: 'medication', label: 'Médicaments', icon: 'Pill', description: 'Préparation et distribution des piluliers' },
+  { id: 'rehabilitation', label: 'Rééducation', icon: 'Dumbbell', description: 'Exercices et maintien de la mobilité' },
+  { id: 'palliative', label: 'Soins palliatifs', icon: 'Heart', description: 'Accompagnement, confort et fin de vie' },
+  { id: 'other', label: 'Autre besoin', icon: 'Plus', description: 'Soin spécifique non listé' },
 ];
 
 export const SPECIALTIES = [

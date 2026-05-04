@@ -14,10 +14,10 @@ import {
   ArrowLeft, ArrowRight, Check, Syringe, Scissors,
   ShowerHead, Activity, Pill, Dumbbell, Heart, Plus,
   MapPin, Calendar, User, FileText, Upload, Repeat,
-  Crosshair, Loader2
+  Crosshair, Loader2, Droplet, Droplets, TestTube, Wind, Bandage
 } from 'lucide-react';
 
-const ICONS = { Syringe, Bandage: Scissors, ShowerHead, Activity, Pill, Dumbbell, Heart, Plus };
+const ICONS = { Syringe, Bandage, ShowerHead, Activity, Pill, Dumbbell, Heart, Plus, Droplet, Scissors, Droplets, TestTube, Wind };
 
 export default function CreateMission() {
   const navigate = useNavigate();
