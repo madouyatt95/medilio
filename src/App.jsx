@@ -96,7 +96,7 @@ function Header() {
   return (
     <>
       <header className="header">
-        <div className="header-logo">
+        <div className="header-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           <div className="header-logo-icon"><Activity size={20} /></div>
           <span>Medilio</span>
         </div>

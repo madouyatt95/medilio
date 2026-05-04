@@ -11,8 +11,9 @@ import {
   Users, ClipboardList, CheckCircle, Shield, Trash2,
   Ban, ChevronRight, UserCheck, Clock, TrendingUp,
   Download, BarChart3, Star, Eye, FileText, Upload,
-  X, Check as CheckIcon
+  X, Check as CheckIcon, LogOut, ArrowUpDown
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -22,6 +23,8 @@ export default function AdminDashboard() {
   const [showVerifyModal, setShowVerifyModal] = useState(null);
   const [ratings, setRatings] = useState([]);
   const [proRatings, setProRatings] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
@@ -54,6 +57,32 @@ export default function AdminDashboard() {
   const totalRevenue = completedMissions.reduce((s, m) => s + (Number(m.estimatedCost) || 0), 0);
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const sortedUsers = [...users].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    let valA = a[sortConfig.key];
+    let valB = b[sortConfig.key];
+    
+    if (sortConfig.key === 'name') {
+      valA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      valB = `${b.firstName} ${b.lastName}`.toLowerCase();
+    } else if (sortConfig.key === 'role') {
+      valA = a.role; valB = b.role;
+    } else if (sortConfig.key === 'status') {
+      valA = a.disabled ? 2 : (a.role === 'professional' && a.professionalInfo?.verified ? 0 : 1);
+      valB = b.disabled ? 2 : (b.role === 'professional' && b.professionalInfo?.verified ? 0 : 1);
+    }
+    
+    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const handleToggleUser = async (userId) => {
     await authService.toggleUserStatus(userId);
@@ -199,9 +228,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="page-container full-width">
-      <div className="dashboard-greeting animate-fadeIn">
-        <h1>Administration 🛡️</h1>
-        <p>Vue d'ensemble de la plateforme Medilio</p>
+      <div className="dashboard-greeting animate-fadeIn" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1>Administration 🛡️</h1>
+          <p>Vue d'ensemble de la plateforme Medilio</p>
+        </div>
+        <button className="btn btn-ghost" style={{ color: 'var(--color-danger)' }} onClick={() => { authService.logout(); navigate('/login'); }}>
+          <LogOut size={20} />
+          <span className="hide-mobile">Déconnexion</span>
+        </button>
       </div>
 
       {/* Stats */}
@@ -384,10 +419,17 @@ export default function AdminDashboard() {
             <div className="admin-table-container">
               <table className="admin-table">
                 <thead>
-                  <tr><th>Utilisateur</th><th>Rôle</th><th>Email</th><th>Note</th><th>Statut</th><th>Actions</th></tr>
+                  <tr>
+                    <th onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>Utilisateur <ArrowUpDown size={12} style={{display: 'inline', opacity: 0.5}} /></th>
+                    <th onClick={() => handleSort('role')} style={{cursor: 'pointer'}}>Rôle <ArrowUpDown size={12} style={{display: 'inline', opacity: 0.5}} /></th>
+                    <th onClick={() => handleSort('email')} style={{cursor: 'pointer'}}>Email <ArrowUpDown size={12} style={{display: 'inline', opacity: 0.5}} /></th>
+                    <th>Note</th>
+                    <th onClick={() => handleSort('status')} style={{cursor: 'pointer'}}>Statut <ArrowUpDown size={12} style={{display: 'inline', opacity: 0.5}} /></th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => {
+                  {sortedUsers.map(u => {
                     const proR = u.role === 'professional' ? proRatings[u.id] : null;
                     return (
                       <tr key={u.id}>

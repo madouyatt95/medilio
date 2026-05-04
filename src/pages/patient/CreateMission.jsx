@@ -1,5 +1,5 @@
 // ── Create Mission (Multi-step Form) — with Address Autocomplete + Mini Map ──
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -59,6 +59,12 @@ export default function CreateMission() {
       return newForm;
     });
   };
+
+  useEffect(() => {
+    if (step === 2 && !form.isForOther && !form.patientInfo.name && user) {
+      update('patientInfo.name', `${user.firstName} ${user.lastName}`);
+    }
+  }, [step, form.isForOther, form.patientInfo.name, user]);
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) {

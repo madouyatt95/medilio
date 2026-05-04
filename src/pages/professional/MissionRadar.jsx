@@ -318,11 +318,13 @@ export default function MissionRadar() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
-              <select className="form-input form-select" value={cityFilter}
-                onChange={e => setCityFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}>
-                <option value="">Toutes les villes</option>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div className="form-group">
+              <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter} list="cities-list"
+                onChange={e => setCityFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }} />
+              <datalist id="cities-list">
+                {CITIES.map(c => <option key={c} value={c} />)}
+              </datalist>
+            </div>
             </div>
             <div className="form-group">
               <select className="form-input form-select" value={careFilter}

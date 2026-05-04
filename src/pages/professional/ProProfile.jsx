@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SPECIALTIES, CITIES } from '../../utils/constants';
+import { SPECIALTIES, EXTENDED_SPECIALTIES, CITIES } from '../../utils/constants';
 import missionService from '../../services/missionService';
 import {
   User, MapPin, Clock, Stethoscope, Save, LogOut,
-  CheckCircle, Shield, Edit3, Star, Award, Briefcase
+  CheckCircle, Shield, Edit3, Star, Award, Briefcase, Plus
 } from 'lucide-react';
 import AvatarUpload from '../../components/AvatarUpload';
 
@@ -14,6 +14,7 @@ export default function ProProfile() {
   const { user, updateProfile, logout } = useAuth();
   const { showToast } = useNotifications();
   const [editing, setEditing] = useState(false);
+  const [customSpecialty, setCustomSpecialty] = useState('');
   const [form, setForm] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -186,7 +187,8 @@ export default function ProProfile() {
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)',
         }}>
-          {SPECIALTIES.map((spec, i) => {
+          {/* Default and currently selected specialties */}
+          {Array.from(new Set([...SPECIALTIES, ...(form?.professionalInfo?.specialties || [])])).map((spec, i) => {
             const isSelected = (form?.professionalInfo?.specialties || []).includes(spec);
             return (
               <div key={spec}
@@ -210,6 +212,45 @@ export default function ProProfile() {
             );
           })}
         </div>
+        {editing && (
+          <div style={{ marginTop: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Ajouter une spécialité..." 
+              list="extended-specialties"
+              value={customSpecialty}
+              onChange={e => setCustomSpecialty(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (customSpecialty.trim()) {
+                    toggleSpecialty(customSpecialty.trim());
+                    setCustomSpecialty('');
+                  }
+                }
+              }}
+              style={{ flex: 1 }}
+            />
+            <datalist id="extended-specialties">
+              {EXTENDED_SPECIALTIES.filter(s => !(form?.professionalInfo?.specialties || []).includes(s)).map(s => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={() => {
+                if (customSpecialty.trim()) {
+                  toggleSpecialty(customSpecialty.trim());
+                  setCustomSpecialty('');
+                }
+              }}
+              style={{ padding: '0 16px' }}
+            >
+              <Plus size={16} /> Ajouter
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bio */}
