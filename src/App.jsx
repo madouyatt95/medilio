@@ -315,6 +315,17 @@ function PatientMissions() {
 
 // ── Main App ──
 function AppContent() {
+  const { user } = useAuth();
+
+  // ── Rappels J-1 automatiques ──
+  useEffect(() => {
+    if (user?.id) {
+      import('./services/reminderService').then(mod => {
+        mod.default.checkAndSendReminders(user.id);
+      });
+    }
+  }, [user?.id]);
+
   return (
     <>
       <Header />

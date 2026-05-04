@@ -1,16 +1,19 @@
-// ── Mission Radar (Professional) ──
+// ── Mission Radar (Professional) — with Interactive Map ──
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
+import geocodingService from '../../services/geocodingService';
+import emailService from '../../services/emailService';
 import authService from '../../services/authService';
 import { CARE_TYPES, CITIES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import { filterMissionsByProximity, getDistanceLabel, calculateDistance, CITY_COORDS } from '../../utils/geoUtils';
+import InteractiveMap, { MARKER_COLORS } from '../../components/InteractiveMap';
 import {
   Radar, MapPin, Calendar, Clock, Search, Filter,
-  ChevronRight, Send, User, ClipboardList, Crosshair
+  ChevronRight, Send, User, ClipboardList, Crosshair, Map as MapIcon, List
 } from 'lucide-react';
 
 export default function MissionRadar() {
@@ -26,6 +29,10 @@ export default function MissionRadar() {
   const [applyMessage, setApplyMessage] = useState('');
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [userCoords, setUserCoords] = useState(null);
+  const [viewMode, setViewMode] = useState('map'); // 'map' | 'list'
+  const [geocodedMissions, setGeocodedMissions] = useState({}); // missionId -> {lat, lng}
+  const [highlightedMission, setHighlightedMission] = useState(null);
 
   // Detect user's city from browser GPS
   const handleGeolocate = () => {
@@ -35,21 +42,30 @@ export default function MissionRadar() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude, longitude } = pos.coords;
-        // Find closest known city
-        let best = null;
-        let bestDist = Infinity;
-        for (const [city, coords] of Object.entries(CITY_COORDS)) {
-          const d = calculateDistance(latitude, longitude, coords.lat, coords.lng);
-          if (d < bestDist) {
-            bestDist = d;
-            best = city;
+        setUserCoords({ lat: latitude, lng: longitude });
+
+        // Reverse geocode to find city name
+        const reverseResult = await geocodingService.reverseGeocode(latitude, longitude);
+        if (reverseResult?.city) {
+          setCityFilter(reverseResult.city);
+          showToast(`📍 Position détectée : ${reverseResult.city}`, 'success');
+        } else {
+          // Fallback: find closest known city
+          let best = null;
+          let bestDist = Infinity;
+          for (const [city, coords] of Object.entries(CITY_COORDS)) {
+            const d = calculateDistance(latitude, longitude, coords.lat, coords.lng);
+            if (d < bestDist) {
+              bestDist = d;
+              best = city;
+            }
           }
-        }
-        if (best) {
-          setCityFilter(best);
-          showToast(`📍 Position détectée : ${best} (${Math.round(bestDist)} km)`, 'success');
+          if (best) {
+            setCityFilter(best);
+            showToast(`📍 Position détectée : ${best} (${Math.round(bestDist)} km)`, 'success');
+          }
         }
         setLocating(false);
       },
@@ -68,6 +84,30 @@ export default function MissionRadar() {
     }
     load();
   }, []);
+
+  // Geocode missions that have addresses but no lat/lng
+  useEffect(() => {
+    async function geocodeMissions() {
+      const toGeocode = missions.filter(m =>
+        m.address?.street && m.address?.city && !m.address?.lat && !geocodedMissions[m.id]
+      );
+      if (toGeocode.length === 0) return;
+
+      const newGeocoded = { ...geocodedMissions };
+      for (const m of toGeocode) {
+        const result = await geocodingService.geocodeAddress(
+          m.address.street, m.address.city, m.address.postalCode
+        );
+        if (result) {
+          newGeocoded[m.id] = { lat: result.lat, lng: result.lng };
+        }
+        // Small delay to respect API rate limits
+        await new Promise(r => setTimeout(r, 100));
+      }
+      setGeocodedMissions(newGeocoded);
+    }
+    if (missions.length > 0) geocodeMissions();
+  }, [missions]);
 
   useEffect(() => {
     let result = [...missions];
@@ -91,17 +131,88 @@ export default function MissionRadar() {
 
   const submitApply = async () => {
     try {
-      await missionService.applyToMission(applyingId, user.id, applyMessage);
+      const updatedMission = await missionService.applyToMission(applyingId, user.id, applyMessage);
       const updated = await missionService.getOpenMissions();
       setMissions(updated);
       showToast('Candidature envoyée !', 'success');
+
+      // Notify patient by email
+      if (updatedMission?.patientId) {
+        const allUsers = await authService.getAllUsers();
+        const patient = allUsers.find(u => u.id === updatedMission.patientId);
+        if (patient?.email) {
+          emailService.notifyNewApplication({
+            patientEmail: patient.email,
+            proName: `${user.firstName} ${user.lastName}`,
+            mission: updatedMission,
+            careTypeLabel: getCareLabel(updatedMission.careType),
+            message: applyMessage,
+          });
+        }
+      }
     } catch (err) {
       showToast(err.message, 'error');
     }
     setShowApplyModal(false);
   };
 
-  // Patient name no longer needed in this view (was unused in JSX)
+  // Build map markers
+  const getMapMarkers = () => {
+    const markers = [];
+
+    // User position
+    if (userCoords) {
+      markers.push({
+        lat: userCoords.lat,
+        lng: userCoords.lng,
+        label: 'Ma position',
+        color: MARKER_COLORS.professional,
+        popupContent: '<div class="map-popup-content"><strong>📍 Ma position</strong></div>',
+      });
+    }
+
+    // Mission markers
+    filtered.forEach(m => {
+      const coords = m.address?.lat && m.address?.lng
+        ? { lat: m.address.lat, lng: m.address.lng }
+        : geocodedMissions[m.id]
+          ? geocodedMissions[m.id]
+          : CITY_COORDS[m.address?.city]
+            ? CITY_COORDS[m.address.city]
+            : null;
+
+      if (coords) {
+        markers.push({
+          lat: coords.lat,
+          lng: coords.lng,
+          label: getCareLabel(m.careType),
+          color: MARKER_COLORS.missionOpen,
+          missionId: m.id,
+          popupContent: `
+            <div class="map-popup-content">
+              <div class="map-popup-type">${getCareLabel(m.careType)}</div>
+              <strong>${m.patientInfo?.name || 'Patient'}</strong>
+              <div class="map-popup-address">📍 ${m.address?.street || ''}, ${m.address?.city || ''}</div>
+              <div class="map-popup-time">📅 ${formatDate(m.scheduledDate)} · ${m.estimatedCost ? m.estimatedCost + ' €' : ''}</div>
+            </div>
+          `,
+        });
+      }
+    });
+
+    return markers;
+  };
+
+  // Radius circle for map
+  const getRadiusCircle = () => {
+    if (userCoords && cityFilter) {
+      return { lat: userCoords.lat, lng: userCoords.lng, radius: radiusFilter };
+    }
+    if (cityFilter && CITY_COORDS[cityFilter]) {
+      return { lat: CITY_COORDS[cityFilter].lat, lng: CITY_COORDS[cityFilter].lng, radius: radiusFilter };
+    }
+    return null;
+  };
 
   return (
     <div className="dark-mode" style={{ 
@@ -116,7 +227,7 @@ export default function MissionRadar() {
       flexDirection: 'column'
     }}>
       <div className="page-container" style={{ position: 'relative', zIndex: 10 }}>
-        {/* Header styling specifically for radar */}
+        {/* Header */}
         <div style={{ padding: 'var(--space-4) 0', marginBottom: 'var(--space-4)' }}>
           <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
             <Radar size={28} style={{ color: 'var(--color-primary-light)' }} className="pulse-glow" />
@@ -132,22 +243,50 @@ export default function MissionRadar() {
               <Filter size={16} />
               <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
             </div>
-            <button
-              onClick={handleGeolocate}
-              disabled={locating}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: 'var(--radius-full)',
-                background: locating ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #06B6D4, #2563EB)',
-                color: 'white', border: 'none', fontSize: '12px', fontWeight: 600,
-                cursor: locating ? 'wait' : 'pointer',
-                boxShadow: '0 4px 12px rgba(6,182,212,0.3)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Crosshair size={14} style={{ animation: locating ? 'spin 1s linear infinite' : 'none' }} />
-              {locating ? 'Localisation...' : 'Me localiser'}
-            </button>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              {/* View mode toggle */}
+              <div style={{
+                display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.2)',
+              }}>
+                <button
+                  onClick={() => setViewMode('map')}
+                  style={{
+                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px',
+                    background: viewMode === 'map' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                    color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer',
+                  }}
+                >
+                  <MapIcon size={12} /> Carte
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  style={{
+                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px',
+                    background: viewMode === 'list' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                    color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer',
+                  }}
+                >
+                  <List size={12} /> Liste
+                </button>
+              </div>
+              <button
+                onClick={handleGeolocate}
+                disabled={locating}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: 'var(--radius-full)',
+                  background: locating ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #06B6D4, #2563EB)',
+                  color: 'white', border: 'none', fontSize: '12px', fontWeight: 600,
+                  cursor: locating ? 'wait' : 'pointer',
+                  boxShadow: '0 4px 12px rgba(6,182,212,0.3)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Crosshair size={14} style={{ animation: locating ? 'spin 1s linear infinite' : 'none' }} />
+                {locating ? 'Localisation...' : 'Me localiser'}
+              </button>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
@@ -175,6 +314,27 @@ export default function MissionRadar() {
           )}
         </div>
 
+        {/* Map View */}
+        {viewMode === 'map' && (
+          <div style={{ marginBottom: 'var(--space-5)' }}>
+            <InteractiveMap
+              markers={getMapMarkers()}
+              height={350}
+              darkMode={true}
+              radiusCircle={getRadiusCircle()}
+              autoFit={true}
+              onMarkerClick={(marker) => {
+                if (marker.missionId) {
+                  setHighlightedMission(marker.missionId);
+                  // Scroll to mission in list below
+                  const el = document.getElementById(`mission-${marker.missionId}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+            />
+          </div>
+        )}
+
         {/* Missions List */}
         {filtered.length === 0 ? (
           <div className="glass-panel" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-4)' }}>
@@ -183,21 +343,49 @@ export default function MissionRadar() {
             <div className="empty-state-text" style={{ color: 'rgba(255,255,255,0.7)' }}>Essayez d'élargir votre zone de recherche ou vos filtres.</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', overflowX: 'auto', gap: 'var(--space-4)', paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', margin: '0 calc(var(--content-padding) * -1)', paddingLeft: 'var(--content-padding)', paddingRight: 'var(--content-padding)', scrollbarWidth: 'none' }}>
+          <div style={{ 
+            display: viewMode === 'list' ? 'flex' : 'flex',
+            flexDirection: viewMode === 'list' ? 'column' : 'row',
+            overflowX: viewMode === 'list' ? 'visible' : 'auto',
+            gap: 'var(--space-4)', 
+            paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', 
+            ...(viewMode === 'list' ? {} : {
+              margin: '0 calc(var(--content-padding) * -1)', 
+              paddingLeft: 'var(--content-padding)', 
+              paddingRight: 'var(--content-padding)', 
+              scrollbarWidth: 'none'
+            })
+          }}>
             {filtered.map(mission => (
-              <div key={mission.id} style={{ 
-                minWidth: '300px', maxWidth: '300px', display: 'flex', flexDirection: 'column',
-                background: 'rgba(30, 41, 59, 0.8)', backdropFilter: 'blur(20px)', borderRadius: 'var(--radius-xl)',
-                border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.5)'
-              }}>
+              <div 
+                key={mission.id}
+                id={`mission-${mission.id}`}
+                style={{ 
+                  minWidth: viewMode === 'list' ? 'auto' : '300px', 
+                  maxWidth: viewMode === 'list' ? '100%' : '300px', 
+                  display: 'flex', flexDirection: 'column',
+                  background: highlightedMission === mission.id 
+                    ? 'rgba(6, 182, 212, 0.2)' 
+                    : 'rgba(30, 41, 59, 0.8)', 
+                  backdropFilter: 'blur(20px)', borderRadius: 'var(--radius-xl)',
+                  border: highlightedMission === mission.id 
+                    ? '2px solid rgba(6, 182, 212, 0.5)' 
+                    : '1px solid rgba(255,255,255,0.1)', 
+                  overflow: 'hidden', 
+                  boxShadow: highlightedMission === mission.id
+                    ? '0 10px 40px -10px rgba(6, 182, 212, 0.3)'
+                    : '0 10px 40px -10px rgba(0,0,0,0.5)',
+                  transition: 'all 0.3s ease',
+                }}
+              >
                 <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800, color: 'white' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 10px #67E8F9' }} />
                       {getCareLabel(mission.careType)}
                     </div>
                     {cityFilter && mission.address?.city && (
-                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white' }}>
                         {getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}
                       </span>
                     )}
@@ -207,8 +395,8 @@ export default function MissionRadar() {
                 <div style={{ padding: 'var(--space-4)', flex: 1 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', color: 'rgba(255,255,255,0.9)', fontSize: 'var(--font-sm)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={14} color="#64748b" /> {formatDate(mission.scheduledDate)}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} color="#64748b" /> {mission.address?.city}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={14} color="#64748b" /> {mission.estimatedDuration} minutes</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} color="#64748b" /> {mission.address?.street ? `${mission.address.street}, ` : ''}{mission.address?.city}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={14} color="#64748b" /> {mission.estimatedDuration || '—'} minutes</div>
                   </div>
                 </div>
 

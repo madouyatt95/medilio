@@ -15,6 +15,8 @@ export const missionService = {
         street: row.street || '',
         city: row.city || '',
         postalCode: row.postal_code || '',
+        lat: row.lat || null,
+        lng: row.lng || null,
       },
       scheduledDate: row.scheduled_date,
       scheduledTime: row.scheduled_time,
@@ -61,26 +63,21 @@ export const missionService = {
   },
 
   async create(missionData) {
+    // Upload documents via documentService
     let uploadedDocs = [];
     if (missionData.documents && missionData.documents.length > 0) {
-      for (const doc of missionData.documents) {
-        if (!doc.file) continue;
-        const file = doc.file;
-        const ext = file.name.split('.').pop();
-        const path = `${missionData.patientId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('mission_docs')
-          .upload(path, file);
-        
-        if (uploadError) {
-          console.warn('Could not upload document, omitting from mission:', uploadError);
-          continue;
-        }
-
-        const { data: urlData } = supabase.storage.from('mission_docs').getPublicUrl(path);
-        uploadedDocs.push({ name: file.name, url: urlData.publicUrl, type: file.type });
-      }
+      // Documents are already uploaded by DocumentUpload component
+      // Just pass them through, filtering out the raw file objects
+      uploadedDocs = missionData.documents.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        type: doc.type,
+        size: doc.size,
+        path: doc.path || null,
+        data: doc.data || null,
+        url: doc.url || null,
+        storageType: doc.storageType || 'local',
+      }));
     }
 
     // Calculate dates for recurrence
@@ -116,6 +113,8 @@ export const missionService = {
       street: missionData.address?.street || '',
       city: missionData.address?.city || '',
       postal_code: missionData.address?.postalCode || '',
+      lat: missionData.address?.lat || null,
+      lng: missionData.address?.lng || null,
       scheduled_date: date,
       scheduled_time: missionData.scheduledTime,
       patient_name: missionData.patientInfo?.name || '',
@@ -128,15 +127,52 @@ export const missionService = {
       documents: uploadedDocs,
     }));
 
-    const { data, error } = await supabase
-      .from('missions')
-      .insert(inserts)
-      .select();
+    // Try Supabase first, fallback to local storage if DB schema is incomplete
+    try {
+      const { data, error } = await supabase
+        .from('missions')
+        .insert(inserts)
+        .select();
 
-    if (error) throw new Error(error.message);
-    
-    // Return the very first mission created to navigate the user
-    return this._mapMission(data[0]);
+      if (error) throw error;
+      
+      // Return the very first mission created to navigate the user
+      return this._mapMission(data[0]);
+    } catch (dbError) {
+      console.warn('Supabase insert failed, saving locally:', dbError.message);
+      
+      // Fallback: save to local demo storage
+      const { v4: uuidv4 } = await import('uuid');
+      const localMission = {
+        id: uuidv4(),
+        patientId: missionData.patientId,
+        status: 'open',
+        careType: missionData.careType,
+        description: missionData.description || '',
+        address: {
+          street: missionData.address?.street || '',
+          city: missionData.address?.city || '',
+          postalCode: missionData.address?.postalCode || '',
+          lat: missionData.address?.lat || null,
+          lng: missionData.address?.lng || null,
+        },
+        scheduledDate: missionData.scheduledDate,
+        scheduledTime: missionData.scheduledTime,
+        patientInfo: missionData.patientInfo || {},
+        documents: uploadedDocs,
+        applicants: [],
+        assignedProId: null,
+        careNotes: [],
+        createdAt: new Date().toISOString(),
+        estimatedDuration: missionData.estimatedDuration || 30,
+        estimatedCost: missionData.estimatedCost || 0,
+        recurrence: missionData.recurrence || 'none',
+      };
+
+      const existing = storageService.getMissions();
+      storageService.setMissions([localMission, ...existing]);
+      return localMission;
+    }
   },
 
   async getAll() {

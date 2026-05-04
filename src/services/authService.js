@@ -46,19 +46,25 @@ export const authService = {
   },
 
   async login(email, password) {
+    console.log('Attempting login for:', email);
     // ── Demo Fallback ──
     const demoUsers = storageService.getUsers();
+    console.log('Local demo users count:', demoUsers.length);
     const demoUser = demoUsers.find(u => u.email === email);
     
     if (demoUser) {
+      console.log('Demo user found locally:', demoUser.email);
       // Basic check: demo password is btoa(raw) in seeder
       if (demoUser.password === btoa(password)) {
+        console.log('Demo password match success');
         storageService.setCurrentUser(demoUser);
         return demoUser;
       }
+      console.warn('Demo password mismatch. Expected:', demoUser.password, 'Got:', btoa(password));
       throw new Error('Identifiants de démonstration invalides.');
     }
 
+    console.log('No demo user found, falling back to Supabase');
     // ── Supabase Login ──
     const { data, error } = await supabase.auth.signInWithPassword({
       email,

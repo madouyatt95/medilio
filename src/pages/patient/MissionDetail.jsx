@@ -7,6 +7,7 @@ import missionService from '../../services/missionService';
 import authService from '../../services/authService';
 import ratingService from '../../services/ratingService';
 import favoritesService from '../../services/favoritesService';
+import emailService from '../../services/emailService';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate, formatRelative } from '../../utils/dateUtils';
 import { RatingDisplay, RatingModal, DocumentUpload } from '../../components/SharedComponents';
@@ -79,6 +80,17 @@ export default function PatientMissionDetail() {
     const updated = await missionService.acceptApplicant(mission.id, proId);
     setMission(updated);
     showToast('Professionnel accepté !', 'success');
+
+    // Send email notification to the accepted pro
+    const pro = applicantUsers[proId];
+    if (pro?.email) {
+      emailService.notifyMissionAccepted({
+        proEmail: pro.email,
+        mission: updated,
+        careTypeLabel: getCareLabel(updated.careType),
+        patientName: `${user?.firstName} ${user?.lastName}`,
+      });
+    }
   };
 
   const handleReject = async (proId) => {

@@ -137,33 +137,59 @@ export function RatingModal({ isOpen, onClose, onSubmit, proName }) {
   );
 }
 
-// ── Document Upload ──
-export function DocumentUpload({ documents = [], onChange, readonly = false }) {
+// ── Document Upload (Secure — Supabase Storage + Fallback) ──
+export function DocumentUpload({ documents = [], onChange, readonly = false, userId }) {
   const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [docUrls, setDocUrls] = useState({}); // id -> url cache
 
-  const handleFiles = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      if (file.size > 5 * 1024 * 1024) return; // 5MB limit
-      const reader = new FileReader();
-      reader.onload = () => {
-        const doc = {
-          id: Date.now().toString() + Math.random().toString(36).slice(2),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          data: reader.result,
-          file: file,
-        };
-        onChange?.([...documents, doc]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+  // Lazy import to avoid circular deps
+  const getDocService = async () => {
+    const mod = await import('../services/documentService');
+    return mod.default;
   };
 
-  const removeDoc = (id) => {
-    onChange?.(documents.filter(d => d.id !== id));
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    e.target.value = '';
+
+    setUploading(true);
+    try {
+      const docService = await getDocService();
+      const uploaded = await docService.uploadMany(files, userId || 'anonymous');
+      onChange?.([...documents, ...uploaded]);
+    } catch (err) {
+      console.error('Upload error:', err);
+    }
+    setUploading(false);
+  };
+
+  const removeDoc = async (doc) => {
+    try {
+      const docService = await getDocService();
+      await docService.delete(doc);
+    } catch { /* ignore */ }
+    onChange?.(documents.filter(d => d.id !== doc.id));
+  };
+
+  const openDoc = async (doc) => {
+    // Check cache first
+    if (docUrls[doc.id]) {
+      window.open(docUrls[doc.id], '_blank');
+      return;
+    }
+
+    try {
+      const docService = await getDocService();
+      const url = await docService.getSecureUrl(doc);
+      if (url) {
+        setDocUrls(prev => ({ ...prev, [doc.id]: url }));
+        window.open(url, '_blank');
+      }
+    } catch (err) {
+      console.error('Could not open document:', err);
+    }
   };
 
   const formatSize = (bytes) => {
@@ -174,62 +200,101 @@ export function DocumentUpload({ documents = [], onChange, readonly = false }) {
 
   const isImage = (type) => type?.startsWith('image/');
 
+  const getPreviewSrc = (doc) => {
+    // Local base64
+    if (doc.data && doc.data.startsWith('data:')) return doc.data;
+    // Cached signed URL
+    if (docUrls[doc.id]) return docUrls[doc.id];
+    // Legacy public URL
+    if (doc.url) return doc.url;
+    return null;
+  };
+
   return (
     <div>
       {!readonly && (
         <>
           <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.doc,.docx"
             style={{ display: 'none' }} onChange={handleFiles} />
-          <button className="btn btn-secondary btn-block" onClick={() => fileRef.current?.click()}
-            style={{ marginBottom: documents.length > 0 ? 'var(--space-3)' : 0 }}>
-            <Upload size={16} /> Ajouter un document
+          <button
+            className="btn btn-secondary btn-block"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            style={{ marginBottom: documents.length > 0 ? 'var(--space-3)' : 0 }}
+          >
+            {uploading ? (
+              <>
+                <span className="address-autocomplete-loader" style={{ position: 'static', width: 16, height: 16 }} />
+                Envoi en cours...
+              </>
+            ) : (
+              <>
+                <Upload size={16} /> Ajouter un document
+              </>
+            )}
           </button>
           <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)', textAlign: 'center' }}>
-            Images, PDF, Word — Max 5 Mo
+            Images, PDF, Word — Max 5 Mo — {documents.length > 0 && (
+              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                {documents.some(d => d.storageType === 'supabase') ? '🔒 Stockage sécurisé' : '📱 Stockage local'}
+              </span>
+            )}
           </p>
         </>
       )}
 
       {documents.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-          {documents.map(doc => (
-            <div key={doc.id} style={{
-              display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
-              padding: 'var(--space-3)', background: 'var(--bg-body)',
-              borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)',
-            }}>
-              {isImage(doc.type) ? (
-                <div style={{
-                  width: 40, height: 40, borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden', flexShrink: 0,
-                }}>
-                  <img src={doc.data} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {documents.map(doc => {
+            const previewSrc = getPreviewSrc(doc);
+            return (
+              <div key={doc.id} style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+                padding: 'var(--space-3)', background: 'var(--bg-body)',
+                borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)',
+                cursor: readonly ? 'pointer' : 'default',
+              }}
+              onClick={readonly ? () => openDoc(doc) : undefined}
+              >
+                {isImage(doc.type) && previewSrc ? (
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+                    overflow: 'hidden', flexShrink: 0,
+                  }}>
+                    <img src={previewSrc} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+                    background: 'var(--color-primary-lighter)', color: 'var(--color-primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <File size={18} />
+                  </div>
+                )}
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 'var(--font-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.name}
+                  </div>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    {formatSize(doc.size)}
+                    {doc.storageType === 'supabase' && (
+                      <span style={{ color: 'var(--color-success)' }}>🔒</span>
+                    )}
+                    {readonly && (
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>Cliquer pour ouvrir</span>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div style={{
-                  width: 40, height: 40, borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-primary-lighter)', color: 'var(--color-primary)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <File size={18} />
-                </div>
-              )}
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: 'var(--font-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {doc.name}
-                </div>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
-                  {formatSize(doc.size)}
-                </div>
+                {!readonly && (
+                  <button className="btn btn-ghost btn-icon" onClick={() => removeDoc(doc)}
+                    style={{ color: 'var(--color-danger)' }}>
+                    <X size={16} />
+                  </button>
+                )}
               </div>
-              {!readonly && (
-                <button className="btn btn-ghost btn-icon" onClick={() => removeDoc(doc.id)}
-                  style={{ color: 'var(--color-danger)' }}>
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

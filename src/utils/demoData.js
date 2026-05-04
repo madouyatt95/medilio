@@ -41,7 +41,7 @@ export function seedDemoData() {
     phone: '06 12 34 56 78',
     avatar: null,
     createdAt: lastWeek.toISOString(),
-    address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
+    address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002', lat: 48.8695, lng: 2.3313 },
     professionalInfo: null,
   };
 
@@ -55,7 +55,7 @@ export function seedDemoData() {
     phone: '06 98 76 54 32',
     avatar: null,
     createdAt: lastWeek.toISOString(),
-    address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' },
+    address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002', lat: 45.7640, lng: 4.8357 },
     professionalInfo: null,
   };
 
@@ -70,7 +70,7 @@ export function seedDemoData() {
     phone: '06 55 44 33 22',
     avatar: null,
     createdAt: lastWeek.toISOString(),
-    address: { street: '5 Rue République', city: 'Paris', postalCode: '75011' },
+    address: { street: '5 Rue République', city: 'Paris', postalCode: '75011', lat: 48.8607, lng: 2.3630 },
     professionalInfo: {
       specialties: ['Infirmier(e) diplômé(e)'],
       serviceArea: { city: 'Paris', radius: 25 },
@@ -90,7 +90,7 @@ export function seedDemoData() {
     phone: '06 33 22 11 00',
     avatar: null,
     createdAt: lastWeek.toISOString(),
-    address: { street: '7 Rue Nationale', city: 'Paris', postalCode: '75013' },
+    address: { street: '7 Rue Nationale', city: 'Paris', postalCode: '75013', lat: 48.8330, lng: 2.3590 },
     professionalInfo: {
       specialties: ['Infirmier(e) diplômé(e)', 'Urgentiste'],
       serviceArea: { city: 'Paris', radius: 20 },
@@ -113,7 +113,7 @@ export function seedDemoData() {
       status: 'assigned',
       careType: 'injection',
       description: 'Injection insuline matinale.',
-      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
+      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002', lat: 48.8695, lng: 2.3313 },
       scheduledDate: todayStr,
       scheduledTime: '08:30',
       patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Diabète' },
@@ -128,7 +128,7 @@ export function seedDemoData() {
       status: 'assigned',
       careType: 'bandage',
       description: 'Changement de pansement post-op.',
-      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' }, // In reality closer to Lucas area
+      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002', lat: 45.7640, lng: 4.8357 },
       scheduledDate: todayStr,
       scheduledTime: '10:00',
       patientInfo: { name: 'Jean Martin', age: 62, conditions: 'Post-op genou' },
@@ -143,7 +143,7 @@ export function seedDemoData() {
       status: 'assigned',
       careType: 'monitoring',
       description: 'Check des constantes après midi.',
-      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002' },
+      address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002', lat: 48.8695, lng: 2.3313 },
       scheduledDate: todayStr,
       scheduledTime: '14:30',
       patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Suivi' },
@@ -158,7 +158,7 @@ export function seedDemoData() {
       status: 'assigned',
       careType: 'hygiene',
       description: 'Aide à la toilette du soir.',
-      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002' },
+      address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002', lat: 45.7640, lng: 4.8357 },
       scheduledDate: todayStr,
       scheduledTime: '19:00',
       patientInfo: { name: 'Jean Martin', age: 62, conditions: 'Mobilité réduite' },

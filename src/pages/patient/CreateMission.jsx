@@ -1,16 +1,20 @@
-// ── Create Mission (Multi-step Form) ──
+// ── Create Mission (Multi-step Form) — with Address Autocomplete + Mini Map ──
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
-import { CARE_TYPES, CITIES } from '../../utils/constants';
+import geocodingService from '../../services/geocodingService';
+import { CARE_TYPES } from '../../utils/constants';
 import { getTodayStr } from '../../utils/dateUtils';
 import { DocumentUpload, RecurrenceSelector } from '../../components/SharedComponents';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
+import InteractiveMap from '../../components/InteractiveMap';
 import {
   ArrowLeft, ArrowRight, Check, Syringe, Scissors,
   ShowerHead, Activity, Pill, Dumbbell, Heart, Plus,
-  MapPin, Calendar, User, FileText, Upload, Repeat
+  MapPin, Calendar, User, FileText, Upload, Repeat,
+  Crosshair, Loader2
 } from 'lucide-react';
 
 const ICONS = { Syringe, Bandage: Scissors, ShowerHead, Activity, Pill, Dumbbell, Heart, Plus };
@@ -20,12 +24,15 @@ export default function CreateMission() {
   const { user } = useAuth();
   const { showToast } = useNotifications();
   const [step, setStep] = useState(0);
+  const [locating, setLocating] = useState(false);
   const [form, setForm] = useState({
     careType: '',
     address: {
       street: user?.address?.street || '',
       city: user?.address?.city || '',
       postalCode: user?.address?.postalCode || '',
+      lat: null,
+      lng: null,
     },
     scheduledDate: '',
     scheduledTime: '',
@@ -51,6 +58,54 @@ export default function CreateMission() {
       obj[keys[keys.length - 1]] = value;
       return newForm;
     });
+  };
+
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) {
+      showToast('Géolocalisation non disponible sur cet appareil', 'error');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const result = await geocodingService.reverseGeocode(latitude, longitude);
+        if (result) {
+          setForm(prev => ({
+            ...prev,
+            address: {
+              street: result.street,
+              city: result.city,
+              postalCode: result.postcode,
+              lat: result.lat,
+              lng: result.lng,
+            },
+          }));
+          showToast(`📍 Adresse détectée : ${result.label}`, 'success');
+        } else {
+          showToast('Impossible de trouver votre adresse', 'error');
+        }
+        setLocating(false);
+      },
+      () => {
+        showToast('Veuillez autoriser la géolocalisation', 'error');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleAddressSelect = (selected) => {
+    setForm(prev => ({
+      ...prev,
+      address: {
+        street: selected.street,
+        city: selected.city,
+        postalCode: selected.postcode,
+        lat: selected.lat,
+        lng: selected.lng,
+      },
+    }));
   };
 
   const steps = [
@@ -82,6 +137,10 @@ export default function CreateMission() {
   };
 
   const getCareLabel = (id) => CARE_TYPES.find(c => c.id === id)?.label || id;
+
+  // Build initial address string for autocomplete
+  const initialAddressStr = [form.address.street, form.address.city, form.address.postalCode]
+    .filter(Boolean).join(', ');
 
   return (
     <div className="page-container no-bottom-nav">
@@ -135,34 +194,76 @@ export default function CreateMission() {
         </div>
       )}
 
-      {/* Step 1: Location & Date */}
+      {/* Step 1: Location & Date — with Autocomplete + Mini Map */}
       {step === 1 && (
         <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
           <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 700 }}>
             Où et quand ?
           </h2>
+
+          {/* Address Autocomplete */}
           <div className="form-group">
-            <label className="form-label">Adresse</label>
-            <input className="form-input" placeholder="Numéro et rue"
-              value={form.address.street}
-              onChange={e => update('address.street', e.target.value)} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-            <div className="form-group">
-              <label className="form-label">Ville</label>
-              <select className="form-input form-select" value={form.address.city}
-                onChange={e => update('address.city', e.target.value)}>
-                <option value="">Sélectionner</option>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+              <label className="form-label" style={{ margin: 0 }}>Adresse du soin</label>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleGeolocate}
+                disabled={locating}
+                style={{
+                  color: 'var(--color-primary)',
+                  gap: '6px', fontSize: 'var(--font-xs)', fontWeight: 600,
+                  padding: '6px 12px', borderRadius: 'var(--radius-full)',
+                  background: 'var(--color-primary-lighter)',
+                }}
+              >
+                {locating ? (
+                  <><Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> Localisation...</>
+                ) : (
+                  <><Crosshair size={14} /> Me localiser</>
+                )}
+              </button>
             </div>
-            <div className="form-group">
-              <label className="form-label">Code postal</label>
-              <input className="form-input" placeholder="75001"
-                value={form.address.postalCode}
-                onChange={e => update('address.postalCode', e.target.value)} />
-            </div>
+            <AddressAutocomplete
+              onSelect={handleAddressSelect}
+              initialValue={initialAddressStr}
+              placeholder="Tapez une adresse... ex: 15 rue de la paix Paris"
+            />
           </div>
+
+          {/* Selected address details (read-only) */}
+          {form.address.city && (
+            <div style={{
+              display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap',
+              fontSize: 'var(--font-xs)', color: 'var(--text-secondary)'
+            }}>
+              <span>📍 <strong>{form.address.street}</strong></span>
+              <span>🏙️ {form.address.city}</span>
+              <span>📮 {form.address.postalCode}</span>
+              {form.address.lat && (
+                <span style={{ color: 'var(--color-success)' }}>✓ Géolocalisée</span>
+              )}
+            </div>
+          )}
+
+          {/* Mini Map Preview */}
+          {form.address.lat && form.address.lng && (
+            <div className="address-mini-map">
+              <InteractiveMap
+                markers={[{
+                  lat: form.address.lat,
+                  lng: form.address.lng,
+                  label: form.address.street,
+                  color: '#2563EB',
+                }]}
+                center={[form.address.lat, form.address.lng]}
+                zoom={15}
+                height={180}
+                autoFit={false}
+              />
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="form-label">Date</label>
@@ -219,7 +320,6 @@ export default function CreateMission() {
               onChange={e => update('patientInfo.name', e.target.value)} />
           </div>
           <div className="form-group">
-             {/* Always ask for age / conditions, but label depends on for whom */}
             <label className="form-label">Âge {form.isForOther ? 'du patient' : ''}</label>
             <input className="form-input" type="number" placeholder="Ex: 75"
               value={form.patientInfo.age}
@@ -273,7 +373,7 @@ export default function CreateMission() {
           )}
           <div>
             <label className="form-label" style={{ marginBottom: 'var(--space-2)', display: 'block' }}>Documents (ordonnance, prescription...)</label>
-            <DocumentUpload documents={form.documents} onChange={docs => update('documents', docs)} />
+            <DocumentUpload documents={form.documents} onChange={docs => update('documents', docs)} userId={user?.id} />
           </div>
         </div>
       )}
@@ -334,6 +434,24 @@ export default function CreateMission() {
               )}
             </div>
           </div>
+
+          {/* Summary Mini Map */}
+          {form.address.lat && form.address.lng && (
+            <div className="address-mini-map" style={{ marginBottom: 'var(--space-4)' }}>
+              <InteractiveMap
+                markers={[{
+                  lat: form.address.lat,
+                  lng: form.address.lng,
+                  label: `${form.address.street}, ${form.address.city}`,
+                  color: '#2563EB',
+                }]}
+                center={[form.address.lat, form.address.lng]}
+                zoom={14}
+                height={160}
+                autoFit={false}
+              />
+            </div>
+          )}
         </div>
       )}
 

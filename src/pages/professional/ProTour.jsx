@@ -1,10 +1,12 @@
-// ── Pro Tour (Optimized Itinerary) ──
+// ── Pro Tour (Optimized Itinerary) — with Interactive Map ──
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import missionService from '../../services/missionService';
+import geocodingService from '../../services/geocodingService';
 import { CARE_TYPES } from '../../utils/constants';
 import { getTodayStr, formatDate } from '../../utils/dateUtils';
+import InteractiveMap, { MARKER_COLORS } from '../../components/InteractiveMap';
 import { 
   ArrowLeft, MapPin, Clock, Calendar, CheckCircle, Navigation, Play
 } from 'lucide-react';
@@ -14,6 +16,7 @@ export default function ProTour() {
   const navigate = useNavigate();
   const [missions, setMissions] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
+  const [geocodedMissions, setGeocodedMissions] = useState({});
 
   useEffect(() => {
     async function load() {
@@ -31,12 +34,73 @@ export default function ProTour() {
     load();
   }, [user, selectedDate]);
 
+  // Geocode missions
+  useEffect(() => {
+    async function geocode() {
+      const newGeocoded = { ...geocodedMissions };
+      let changed = false;
+      for (const m of missions) {
+        if (m.address && !m.address.lat && !newGeocoded[m.id]) {
+          const result = await geocodingService.geocodeAddress(
+            m.address.street, m.address.city, m.address.postalCode
+          );
+          if (result) {
+            newGeocoded[m.id] = { lat: result.lat, lng: result.lng };
+            changed = true;
+          }
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      if (changed) setGeocodedMissions(newGeocoded);
+    }
+    if (missions.length > 0) geocode();
+  }, [missions]);
+
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
   const openMaps = (address) => {
     const query = encodeURIComponent(`${address.street}, ${address.city} ${address.postalCode}`);
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   };
+
+  // Build map markers with numbered labels
+  const getMapMarkers = () => {
+    return missions.map((m, idx) => {
+      const coords = m.address?.lat && m.address?.lng
+        ? { lat: m.address.lat, lng: m.address.lng }
+        : geocodedMissions[m.id] || null;
+
+      if (!coords) return null;
+
+      return {
+        lat: coords.lat,
+        lng: coords.lng,
+        numberLabel: String(idx + 1),
+        color: m.status === 'completed' ? MARKER_COLORS.missionCompleted : MARKER_COLORS.missionAssigned,
+        popupContent: `
+          <div class="map-popup-content">
+            <div class="map-popup-type">${m.scheduledTime} — ${getCareLabel(m.careType)}</div>
+            <strong>${m.patientInfo?.name || 'Patient'}</strong>
+            <div class="map-popup-address">📍 ${m.address?.street}, ${m.address?.city}</div>
+          </div>
+        `,
+      };
+    }).filter(Boolean);
+  };
+
+  // Build polyline from ordered mission coordinates
+  const getPolyline = () => {
+    return missions.map(m => {
+      const coords = m.address?.lat && m.address?.lng
+        ? { lat: m.address.lat, lng: m.address.lng }
+        : geocodedMissions[m.id] || null;
+      if (!coords) return null;
+      return [coords.lat, coords.lng];
+    }).filter(Boolean);
+  };
+
+  const mapMarkers = getMapMarkers();
+  const polyline = getPolyline();
 
   return (
     <div className="page-container">
@@ -47,7 +111,7 @@ export default function ProTour() {
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 700 }}>Ma Tournée</h1>
-          <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Itinéraire optimisé</p>
+          <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Itinéraire optimisé — {missions.length} étape(s)</p>
         </div>
       </div>
 
@@ -61,19 +125,31 @@ export default function ProTour() {
         />
       </div>
 
-      {/* Map Placeholder */}
-      <div style={{
-        height: 200, borderRadius: 'var(--radius-lg)', background: '#E2E8F0',
-        marginBottom: 'var(--space-5)', position: 'relative', overflow: 'hidden',
-        border: '1px solid var(--border-light)'
-      }}>
-        {/* Fake Map background */}
-        <div style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.5, backgroundImage: 'url(https://www.transparenttextures.com/patterns/cubes.png)' }} />
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-          <Navigation size={32} style={{ color: 'var(--color-primary)', marginBottom: 8 }} />
-          <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)', color: 'var(--text-secondary)' }}>Aperçu du trajet</div>
+      {/* Interactive Map */}
+      {mapMarkers.length > 0 ? (
+        <div style={{ marginBottom: 'var(--space-5)' }}>
+          <InteractiveMap
+            markers={mapMarkers}
+            height={250}
+            polyline={polyline}
+            autoFit={true}
+          />
         </div>
-      </div>
+      ) : (
+        <div style={{
+          height: 200, borderRadius: 'var(--radius-lg)', background: '#E2E8F0',
+          marginBottom: 'var(--space-5)', position: 'relative', overflow: 'hidden',
+          border: '1px solid var(--border-light)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <Navigation size={32} style={{ color: 'var(--color-primary)', marginBottom: 8 }} />
+            <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)', color: 'var(--text-secondary)' }}>
+              {missions.length === 0 ? 'Aucune mission ce jour' : 'Géolocalisation en cours...'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Itinerary Timeline */}
       <div style={{ position: 'relative', paddingLeft: 24 }}>
@@ -85,12 +161,16 @@ export default function ProTour() {
         ) : (
           missions.map((m, idx) => (
             <div key={m.id} style={{ position: 'relative', marginBottom: 'var(--space-5)', opacity: m.status === 'completed' ? 0.6 : 1 }}>
-              {/* timeline dot */}
+              {/* timeline dot with number */}
               <div style={{ 
-                position: 'absolute', left: -21, top: 4, width: 12, height: 12, borderRadius: '50%',
+                position: 'absolute', left: -24, top: 2, width: 20, height: 20, borderRadius: '50%',
                 background: m.status === 'completed' ? 'var(--color-success)' : 'var(--color-primary)',
-                border: '2px solid var(--bg-body)'
-              }} />
+                border: '2px solid var(--bg-body)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontSize: '10px', fontWeight: 800,
+              }}>
+                {idx + 1}
+              </div>
               
               <div className="card" style={{ padding: 'var(--space-3)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
