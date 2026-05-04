@@ -220,6 +220,17 @@ export default function MissionRadar() {
       });
     }
 
+    // Selected city center
+    if (selectedCityCoords) {
+      markers.push({
+        lat: selectedCityCoords.lat,
+        lng: selectedCityCoords.lng,
+        label: cityFilter,
+        color: '#64748b',
+        popupContent: `<div class="map-popup-content"><strong>📍 Centre : ${cityFilter}</strong></div>`,
+      });
+    }
+
     // Mission markers
     filtered.forEach(m => {
       const coords = m.address?.lat && m.address?.lng
@@ -256,6 +267,9 @@ export default function MissionRadar() {
   const getRadiusCircle = () => {
     if (userCoords && cityFilter) {
       return { lat: userCoords.lat, lng: userCoords.lng, radius: radiusFilter };
+    }
+    if (selectedCityCoords) {
+      return { lat: selectedCityCoords.lat, lng: selectedCityCoords.lng, radius: radiusFilter };
     }
     if (cityFilter && CITY_COORDS[cityFilter]) {
       return { lat: CITY_COORDS[cityFilter].lat, lng: CITY_COORDS[cityFilter].lng, radius: radiusFilter };
@@ -337,8 +351,8 @@ export default function MissionRadar() {
               </button>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-            <div className="form-group" style={{ position: 'relative', zIndex: 50 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', position: 'relative', zIndex: 2000 }}>
+            <div className="form-group" style={{ position: 'relative', zIndex: 2000 }}>
               <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter}
                 onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }} 
                 onFocus={() => setShowCitySuggestions(true)}
@@ -359,6 +373,7 @@ export default function MissionRadar() {
                         setCityFilter(c.nom);
                         if (c.coords) {
                           setSelectedCityCoords({ lat: c.coords[1], lng: c.coords[0] });
+                          setUserCoords(null);
                         }
                         setShowCitySuggestions(false);
                       }}

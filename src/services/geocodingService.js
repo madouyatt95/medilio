@@ -36,7 +36,7 @@ export const geocodingService = {
       const data = await response.json();
       const results = (data.features || []).map(f => ({
         label: f.properties.label,
-        street: f.properties.postcode && f.properties.label.includes(f.properties.postcode) ? f.properties.label.split(f.properties.postcode)[0].trim() : f.properties.name || '',
+        street: f.properties.name || '',
         city: f.properties.city || '',
         postcode: f.properties.postcode || '',
         context: f.properties.context || '',
