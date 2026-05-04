@@ -24,7 +24,7 @@ export default function CreateMission() {
   const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useNotifications();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(location.state?.careType ? 1 : 0);
   const [locating, setLocating] = useState(false);
   const [form, setForm] = useState({
     careType: location.state?.careType || '',

@@ -106,7 +106,7 @@ export default function PatientDashboard() {
               item.label.toLowerCase().includes(searchQuery.toLowerCase())
             ).map(item => (
               <li key={item.id} 
-                onClick={() => { navigate('/patient/create-mission', { state: { careType: item.id } }); setShowSearchSuggestions(false); }}
+                onMouseDown={() => { navigate('/patient/create-mission', { state: { careType: item.id } }); setShowSearchSuggestions(false); }}
                 style={{ padding: '12px 16px', fontSize: 'var(--font-sm)', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <ClipboardList size={16} style={{ color: 'var(--color-primary)' }} />

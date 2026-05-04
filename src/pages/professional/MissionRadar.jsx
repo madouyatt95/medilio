@@ -25,6 +25,8 @@ export default function MissionRadar() {
   const [cityFilter, setCityFilter] = useState(user?.professionalInfo?.serviceArea?.city || '');
   const [radiusFilter, setRadiusFilter] = useState(20);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [apiCities, setApiCities] = useState([]);
+  const [selectedCityCoords, setSelectedCityCoords] = useState(null);
   const [careFilter, setCareFilter] = useState('');
   const [applyingId, setApplyingId] = useState(null);
   const [applyMessage, setApplyMessage] = useState('');
@@ -34,6 +36,20 @@ export default function MissionRadar() {
   const [viewMode, setViewMode] = useState('map'); // 'map' | 'list'
   const [geocodedMissions, setGeocodedMissions] = useState({}); // missionId -> {lat, lng}
   const [highlightedMission, setHighlightedMission] = useState(null);
+
+  useEffect(() => {
+    if (cityFilter.length < 2) { setApiCities([]); return; }
+    const delay = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${cityFilter}&fields=nom,centre&limit=5`);
+        const data = await res.json();
+        setApiCities(data.map(d => ({ nom: d.nom, coords: d.centre?.coordinates })));
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [cityFilter]);
 
   // Detect user's city from browser GPS
   const handleGeolocate = () => {
@@ -122,23 +138,27 @@ export default function MissionRadar() {
         // If we have GPS position of the user, filter by real distance
         if (userCoords && mLat && mLng) {
           const dist = calculateDistance(userCoords.lat, userCoords.lng, mLat, mLng);
+          m.computedDistance = dist;
           return dist <= radiusFilter;
         }
 
         // If we have coords for both, use them
-        const originCoords = cityFilter ? CITY_COORDS[cityFilter] : null;
+        const originCoords = selectedCityCoords || (cityFilter ? CITY_COORDS[cityFilter] : null);
         if (originCoords && mLat && mLng) {
           const dist = calculateDistance(originCoords.lat, originCoords.lng, mLat, mLng);
+          m.computedDistance = dist;
           return dist <= radiusFilter;
         }
 
         // Fallback: city name matching (case-insensitive, partial)
         if (cityFilter && m.address?.city) {
+          m.computedDistance = null;
           return m.address.city.toLowerCase().includes(cityFilter.toLowerCase()) ||
                  cityFilter.toLowerCase().includes(m.address.city.toLowerCase());
         }
 
         // No filter criteria met — still show the mission
+        m.computedDistance = null;
         return true;
       });
     }
@@ -332,12 +352,19 @@ export default function MissionRadar() {
                   boxShadow: 'var(--shadow-lg)', maxHeight: '150px', overflowY: 'auto',
                   border: '1px solid var(--border-color)', padding: '4px 0', marginTop: '4px'
                 }}>
-                  {CITIES.filter(c => c.toLowerCase().includes(cityFilter.toLowerCase())).map(c => (
-                    <li key={c} 
-                      onClick={() => { setCityFilter(c); setShowCitySuggestions(false); }}
+                  {apiCities.map((c, i) => (
+                    <li key={i} 
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // prevent blur
+                        setCityFilter(c.nom);
+                        if (c.coords) {
+                          setSelectedCityCoords({ lat: c.coords[1], lng: c.coords[0] });
+                        }
+                        setShowCitySuggestions(false);
+                      }}
                       style={{ padding: '8px 12px', fontSize: 'var(--font-sm)', color: '#000', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
                     >
-                      {c}
+                      {c.nom}
                     </li>
                   ))}
                 </ul>
@@ -432,8 +459,10 @@ export default function MissionRadar() {
                       {getCareLabel(mission.careType)}
                     </div>
                     {cityFilter && mission.address?.city && (
-                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white' }}>
-                        {getDistanceLabel(cityFilter, mission.address.city) || mission.address.city}
+                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white', fontWeight: 600 }}>
+                        {mission.computedDistance !== undefined && mission.computedDistance !== null
+                          ? `${mission.computedDistance.toFixed(1)} km`
+                          : (getDistanceLabel(cityFilter, mission.address.city) || mission.address.city)}
                       </span>
                     )}
                   </div>
