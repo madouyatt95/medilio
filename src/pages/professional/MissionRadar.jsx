@@ -338,7 +338,7 @@ export default function MissionRadar() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-            <div className="form-group" style={{ position: 'relative' }}>
+            <div className="form-group" style={{ position: 'relative', zIndex: 50 }}>
               <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter}
                 onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }} 
                 onFocus={() => setShowCitySuggestions(true)}
@@ -347,7 +347,7 @@ export default function MissionRadar() {
               
               {showCitySuggestions && cityFilter && (
                 <ul style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
                   background: 'white', borderRadius: 'var(--radius-md)',
                   boxShadow: 'var(--shadow-lg)', maxHeight: '150px', overflowY: 'auto',
                   border: '1px solid var(--border-color)', padding: '4px 0', marginTop: '4px'

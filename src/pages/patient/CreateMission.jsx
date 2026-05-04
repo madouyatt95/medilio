@@ -67,6 +67,15 @@ export default function CreateMission() {
     }
   }, [step, form.isForOther, form.patientInfo.name, user]);
 
+  useEffect(() => {
+    if (location.state?.careType) {
+      setForm(prev => ({ ...prev, careType: location.state.careType }));
+      setStep(1);
+      // Clean up state so we don't force step 1 if the user navigates back
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.careType, navigate, location.pathname]);
+
   const handleGeolocate = () => {
     if (!navigator.geolocation) {
       showToast('Géolocalisation non disponible sur cet appareil', 'error');
@@ -190,7 +199,7 @@ export default function CreateMission() {
               return (
                 <div key={ct.id}
                   className={`care-type-option ${form.careType === ct.id ? 'selected' : ''}`}
-                  onClick={() => update('careType', ct.id)}>
+                  onClick={() => { update('careType', ct.id); setStep(1); }}>
                   <div className="care-type-option-icon"><Icon size={20} /></div>
                   <div className="care-type-option-label">{ct.label}</div>
                   <div className="care-type-option-desc">{ct.description}</div>
