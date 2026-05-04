@@ -1,6 +1,6 @@
 // ── Create Mission (Multi-step Form) — with Address Autocomplete + Mini Map ──
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
@@ -21,12 +21,13 @@ const ICONS = { Syringe, Bandage: Scissors, ShowerHead, Activity, Pill, Dumbbell
 
 export default function CreateMission() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useNotifications();
   const [step, setStep] = useState(0);
   const [locating, setLocating] = useState(false);
   const [form, setForm] = useState({
-    careType: '',
+    careType: location.state?.careType || '',
     address: {
       street: user?.address?.street || '',
       city: user?.address?.city || '',

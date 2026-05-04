@@ -23,7 +23,8 @@ export default function MissionRadar() {
   const [missions, setMissions] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [cityFilter, setCityFilter] = useState(user?.professionalInfo?.serviceArea?.city || '');
-  const [radiusFilter, setRadiusFilter] = useState(user?.professionalInfo?.serviceArea?.radius || 30);
+  const [radiusFilter, setRadiusFilter] = useState(20);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [careFilter, setCareFilter] = useState('');
   const [applyingId, setApplyingId] = useState(null);
   const [applyMessage, setApplyMessage] = useState('');
@@ -317,14 +318,30 @@ export default function MissionRadar() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-            <div className="form-group">
-            <div className="form-group">
-              <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter} list="cities-list"
-                onChange={e => setCityFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }} />
-              <datalist id="cities-list">
-                {CITIES.map(c => <option key={c} value={c} />)}
-              </datalist>
-            </div>
+            <div className="form-group" style={{ position: 'relative' }}>
+              <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter}
+                onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }} 
+                onFocus={() => setShowCitySuggestions(true)}
+                onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }} />
+              
+              {showCitySuggestions && cityFilter && (
+                <ul style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                  background: 'white', borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)', maxHeight: '150px', overflowY: 'auto',
+                  border: '1px solid var(--border-color)', padding: '4px 0', marginTop: '4px'
+                }}>
+                  {CITIES.filter(c => c.toLowerCase().includes(cityFilter.toLowerCase())).map(c => (
+                    <li key={c} 
+                      onClick={() => { setCityFilter(c); setShowCitySuggestions(false); }}
+                      style={{ padding: '8px 12px', fontSize: 'var(--font-sm)', color: '#000', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
+                    >
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div className="form-group">
               <select className="form-input form-select" value={careFilter}

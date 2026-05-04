@@ -20,6 +20,8 @@ export default function PatientDashboard() {
   const navigate = useNavigate();
   const [missions, setMissions] = useState([]);
   const [featuredPros, setFeaturedPros] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -54,7 +56,7 @@ export default function PatientDashboard() {
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
   return (
-    <div className="page-container" style={{ paddingTop: 'var(--space-8)' }}>
+    <div className="page-container">
       {/* Greeting (Premium Header style) */}
       <div className="dashboard-greeting animate-fadeIn" style={{ marginBottom: 'var(--space-8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
@@ -73,7 +75,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Global Search Bar (Glass style) */}
-      <div className="animate-fadeInUp" style={{ marginBottom: 'var(--space-10)', animationDelay: '100ms' }}>
+      <div className="animate-fadeInUp" style={{ marginBottom: 'var(--space-10)', animationDelay: '100ms', position: 'relative' }}>
         <div className="glass-panel" style={{
           display: 'flex', alignItems: 'center', padding: '16px 24px',
           borderRadius: 'var(--radius-xl)', gap: '16px', cursor: 'text'
@@ -82,6 +84,10 @@ export default function PatientDashboard() {
           <input 
             type="text" 
             placeholder="Rechercher un soin, un infirmier..." 
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setShowSearchSuggestions(true); }}
+            onFocus={() => setShowSearchSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
             style={{ 
               background: 'transparent', border: 'none', outline: 'none', 
               width: '100%', fontSize: 'var(--font-base)', fontWeight: 500,
@@ -89,6 +95,26 @@ export default function PatientDashboard() {
             }} 
           />
         </div>
+        {showSearchSuggestions && searchQuery && (
+          <ul style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+            background: 'white', borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)', maxHeight: '200px', overflowY: 'auto',
+            border: '1px solid var(--border-color)', padding: '4px 0', marginTop: '4px'
+          }}>
+            {[...CARE_TYPES.map(c => ({ id: c.id, label: c.label, type: 'care' }))].filter(item => 
+              item.label.toLowerCase().includes(searchQuery.toLowerCase())
+            ).map(item => (
+              <li key={item.id} 
+                onClick={() => { navigate('/patient/create-mission', { state: { careType: item.id } }); setShowSearchSuggestions(false); }}
+                style={{ padding: '12px 16px', fontSize: 'var(--font-sm)', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <ClipboardList size={16} style={{ color: 'var(--color-primary)' }} />
+                <span>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Categories of Care — pastel colored cards with emoji icons like mockup */}
@@ -103,7 +129,7 @@ export default function PatientDashboard() {
           {CARE_CARDS.map(card => (
             <div
               key={card.id}
-              onClick={() => navigate('/patient/create-mission')}
+              onClick={() => navigate('/patient/create-mission', { state: { careType: card.id } })}
               className="glass-card"
               style={{
                 borderRadius: 'var(--radius-xl)',
