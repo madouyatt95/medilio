@@ -168,30 +168,46 @@ export const authService = {
   },
 
   async getAllUsers() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // ── Local Demo Users (toujours présents) ──
+    const localUsers = storageService.getUsers();
 
-    if (error) throw new Error(error.message);
+    // ── Supabase Profiles ──
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    return data.map(p => ({
-      id: p.id,
-      role: p.role,
-      firstName: p.first_name,
-      lastName: p.last_name,
-      phone: p.phone || '',
-      avatar: p.avatar_url || null,
-      createdAt: p.created_at,
-      address: { street: p.street || '', city: p.city || '', postalCode: p.postal_code || '' },
-      professionalInfo: p.role === 'professional' ? {
-        specialties: p.specialties || [],
-        serviceArea: { city: p.city || '', radius: p.radius || 20 },
-        bio: p.bio || '',
-        verified: p.verified || false,
-      } : null,
-      disabled: p.disabled || false,
-    }));
+      if (error) throw error;
+
+      const remoteUsers = data.map(p => ({
+        id: p.id,
+        email: p.email || '',
+        role: p.role,
+        firstName: p.first_name,
+        lastName: p.last_name,
+        phone: p.phone || '',
+        avatar: p.avatar_url || null,
+        createdAt: p.created_at,
+        address: { street: p.street || '', city: p.city || '', postalCode: p.postal_code || '' },
+        professionalInfo: p.role === 'professional' ? {
+          specialties: p.specialties || [],
+          serviceArea: { city: p.city || '', radius: p.radius || 20 },
+          bio: p.bio || '',
+          verified: p.verified || false,
+        } : null,
+        disabled: p.disabled || false,
+      }));
+
+      // Merge: avoid duplicates (local users with same email as remote)
+      const remoteEmails = new Set(remoteUsers.map(u => u.email));
+      const uniqueLocal = localUsers.filter(u => !remoteEmails.has(u.email));
+
+      return [...uniqueLocal, ...remoteUsers];
+    } catch {
+      // Fallback to local only
+      return localUsers;
+    }
   },
 
   async toggleUserStatus(userId) {

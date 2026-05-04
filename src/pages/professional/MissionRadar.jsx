@@ -111,9 +111,37 @@ export default function MissionRadar() {
 
   useEffect(() => {
     let result = [...missions];
-    if (cityFilter) {
-      result = filterMissionsByProximity(result, cityFilter, radiusFilter);
+
+    if (cityFilter || userCoords) {
+      result = missions.filter(m => {
+        // Get mission coords: from address or from geocoded cache
+        const mLat = m.address?.lat || geocodedMissions[m.id]?.lat;
+        const mLng = m.address?.lng || geocodedMissions[m.id]?.lng;
+
+        // If we have GPS position of the user, filter by real distance
+        if (userCoords && mLat && mLng) {
+          const dist = calculateDistance(userCoords.lat, userCoords.lng, mLat, mLng);
+          return dist <= radiusFilter;
+        }
+
+        // If we have coords for both, use them
+        const originCoords = cityFilter ? CITY_COORDS[cityFilter] : null;
+        if (originCoords && mLat && mLng) {
+          const dist = calculateDistance(originCoords.lat, originCoords.lng, mLat, mLng);
+          return dist <= radiusFilter;
+        }
+
+        // Fallback: city name matching (case-insensitive, partial)
+        if (cityFilter && m.address?.city) {
+          return m.address.city.toLowerCase().includes(cityFilter.toLowerCase()) ||
+                 cityFilter.toLowerCase().includes(m.address.city.toLowerCase());
+        }
+
+        // No filter criteria met — still show the mission
+        return true;
+      });
     }
+
     if (careFilter) {
       result = result.filter(m => m.careType === careFilter);
     }

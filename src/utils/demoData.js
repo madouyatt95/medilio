@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v2';
+const DEMO_SEEDED_KEY = 'medilio_demo_v3';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
@@ -207,7 +207,65 @@ export function seedDemoData() {
     }
   ];
 
-  const allMissions = [...tourMissions, ...historicalMissions];
+  // ── Open Missions (visible in the Radar for pros) ──
+  const openMissions = [
+    {
+      id: uuidv4(),
+      patientId: patient1.id,
+      status: 'open',
+      careType: 'injection',
+      description: 'Injection quotidienne d\'insuline. Patient diabétique, matériel fourni.',
+      address: { street: '22 Avenue de l\'Opéra', city: 'Paris', postalCode: '75001', lat: 48.8703, lng: 2.3319 },
+      scheduledDate: tomorrow.toISOString().split('T')[0],
+      scheduledTime: '09:00',
+      patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Diabète type 2' },
+      applicants: [],
+      assignedProId: null,
+      careNotes: [],
+      createdAt: now.toISOString(),
+      estimatedCost: 20,
+      estimatedDuration: 30,
+      recurrence: 'daily',
+    },
+    {
+      id: uuidv4(),
+      patientId: patient1.id,
+      status: 'open',
+      careType: 'bandage',
+      description: 'Changement de pansement post-opératoire. Plaie propre, sutures à surveiller.',
+      address: { street: '5 Rue de la Boétie', city: 'Paris', postalCode: '75008', lat: 48.8737, lng: 2.3131 },
+      scheduledDate: tomorrow.toISOString().split('T')[0],
+      scheduledTime: '11:00',
+      patientInfo: { name: 'Marie Dupont', age: 45, conditions: 'Post-op genou' },
+      applicants: [],
+      assignedProId: null,
+      careNotes: [],
+      createdAt: now.toISOString(),
+      estimatedCost: 35,
+      estimatedDuration: 45,
+      recurrence: 'none',
+    },
+    {
+      id: uuidv4(),
+      patientId: patient2.id,
+      status: 'open',
+      careType: 'monitoring',
+      description: 'Suivi tensionnel et prise de constantes. Patient hypertendu sous traitement.',
+      address: { street: '12 Rue Garibaldi', city: 'Lyon', postalCode: '69006', lat: 45.7676, lng: 4.8479 },
+      scheduledDate: tomorrow.toISOString().split('T')[0],
+      scheduledTime: '14:00',
+      patientInfo: { name: 'Jean Martin', age: 62, conditions: 'Hypertension' },
+      applicants: [],
+      assignedProId: null,
+      careNotes: [],
+      createdAt: now.toISOString(),
+      estimatedCost: 25,
+      estimatedDuration: 30,
+      recurrence: 'weekly',
+    },
+  ];
+
+  const allMissions = [...openMissions, ...tourMissions, ...historicalMissions];
 
   // ── Notifications ──
   const notifications = [

@@ -240,14 +240,23 @@ export const missionService = {
   },
 
   async getOpenMissions() {
-    const { data, error } = await supabase
-      .from('missions')
-      .select('*')
-      .eq('status', 'open')
-      .order('created_at', { ascending: false });
+    // ── Local Demo Missions ──
+    const localOpen = storageService.getMissions().filter(m => m.status === 'open');
 
-    if (error) throw new Error(error.message);
-    return Promise.all((data || []).map(m => this._fetchFull(m)));
+    // ── Supabase Missions ──
+    try {
+      const { data, error } = await supabase
+        .from('missions')
+        .select('*')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
+      return [...localOpen, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch {
+      return localOpen;
+    }
   },
 
   async applyToMission(missionId, proId, message = '') {
