@@ -34,16 +34,31 @@ export const geocodingService = {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json();
-      const results = (data.features || []).map(f => ({
-        label: f.properties.label,
-        street: f.properties.name || '',
-        city: f.properties.city || '',
-        postcode: f.properties.postcode || '',
-        context: f.properties.context || '',
-        lat: f.geometry.coordinates[1],
-        lng: f.geometry.coordinates[0],
-        score: f.properties.score || 0,
-      }));
+      const results = (data.features || []).map(f => {
+        let label = f.properties.label;
+        let street = f.properties.name || '';
+        
+        // If the API returns a street (e.g. house number missing), but user typed a number, inject it!
+        if (f.properties.type === 'street') {
+          const match = query.trim().match(/^(\d+[\s\w]*)\s/);
+          if (match && !label.toLowerCase().startsWith(match[1].trim().toLowerCase())) {
+            const num = match[1].trim();
+            label = `${num} ${label}`;
+            street = `${num} ${street}`;
+          }
+        }
+        
+        return {
+          label,
+          street,
+          city: f.properties.city || '',
+          postcode: f.properties.postcode || '',
+          context: f.properties.context || '',
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0],
+          score: f.properties.score || 0,
+        };
+      });
 
       cache.set(key, results);
       if (cache.size > 200) {
