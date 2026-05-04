@@ -43,16 +43,28 @@ export default function AddressAutocomplete({ onSelect, initialValue = '', place
   };
 
   const handleSelect = (suggestion) => {
-    setQuery(suggestion.label);
+    let finalStreet = suggestion.street || '';
+    let finalLabel = suggestion.label || '';
+    
+    // Preserve house number if user typed it but API returned a generic street
+    const queryMatch = query.trim().match(/^(\d+[\s\w]*)\s/);
+    const suggestionMatch = finalLabel.match(/^(\d+)/);
+    
+    if (queryMatch && !suggestionMatch && finalStreet) {
+      finalStreet = `${queryMatch[1].trim()} ${finalStreet}`;
+      finalLabel = `${queryMatch[1].trim()} ${finalLabel}`;
+    }
+
+    setQuery(finalLabel);
     setIsOpen(false);
     setSuggestions([]);
     onSelect({
-      street: suggestion.street,
+      street: finalStreet,
       city: suggestion.city,
       postcode: suggestion.postcode,
       lat: suggestion.lat,
       lng: suggestion.lng,
-      label: suggestion.label,
+      label: finalLabel,
     });
   };
 

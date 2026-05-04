@@ -218,7 +218,7 @@ export default function CreateMission() {
           </h2>
 
           {/* Address Autocomplete */}
-          <div className="form-group">
+          <div className="form-group" style={{ position: 'relative', zIndex: 2000 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
               <label className="form-label" style={{ margin: 0 }}>Adresse du soin</label>
               <button
