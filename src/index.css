@@ -547,14 +547,14 @@ ul, ol { list-style: none; }
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--header-height);
-  background: linear-gradient(135deg, #1e40af 0%, #0e7490 100%);
-  border-bottom: none;
+  background: white;
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--content-padding);
   z-index: var(--z-sticky);
-  box-shadow: 0 4px 20px rgba(30, 64, 175, 0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
 }
 
 .header-logo {
@@ -563,21 +563,19 @@ ul, ol { list-style: none; }
   gap: var(--space-2);
   font-size: var(--font-xl);
   font-weight: 800;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  color: var(--text-primary);
 }
 
 .header-logo-icon {
   width: 36px;
   height: 36px;
-  background: rgba(255,255,255,0.2);
-  backdrop-filter: blur(8px);
+  background: var(--bg-input);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .header-actions {
@@ -594,13 +592,13 @@ ul, ol { list-style: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.85);
+  color: var(--text-secondary);
   transition: all var(--transition-fast);
 }
 
 .header-notif-btn:hover {
-  background: rgba(255,255,255,0.15);
-  color: white;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .header-notif-badge {
@@ -2886,3 +2884,151 @@ body::after {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Premium Layout Overrides ── */
+:root {
+  --shadow-premium: 0 12px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --color-primary-lighter: rgba(37, 99, 235, 0.08);
+}
+
+.badge-nav {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 18px);
+  background: var(--color-danger);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid white;
+}
+
+/* Radar Pulse Card Animation */
+.radar-pulse-container {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.radar-pulse-ring {
+  position: absolute;
+  border: 1.5px solid rgba(37, 99, 235, 0.15);
+  border-radius: 50%;
+  animation: radar-pulse 3s infinite linear;
+  opacity: 0;
+}
+
+.radar-pulse-ring:nth-child(1) {
+  width: 30px;
+  height: 30px;
+  animation-delay: 0s;
+}
+
+.radar-pulse-ring:nth-child(2) {
+  width: 60px;
+  height: 60px;
+  animation-delay: 1s;
+}
+
+.radar-pulse-ring:nth-child(3) {
+  width: 100px;
+  height: 100px;
+  animation-delay: 2s;
+}
+
+.radar-pulse-center {
+  width: 14px;
+  height: 14px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 0 15px var(--color-primary);
+  position: relative;
+}
+
+.radar-pulse-sweep {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  background: conic-gradient(from 0deg, rgba(37, 99, 235, 0.15) 0deg, transparent 90deg, transparent 360deg);
+  border-radius: 50%;
+  animation: radar-sweep 4s infinite linear;
+  z-index: 1;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sparklines sparkline */
+.sparkline-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+}
+
+.sparkline-bar {
+  width: 3px;
+  background: var(--color-primary);
+  border-radius: 1px;
+  transition: height 0.3s ease;
+}
+
+/* Profile Tab styles */
+.profile-tabs {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: var(--space-4);
+}
+
+.profile-tab-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.profile-tab-btn.active {
+  background: white;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+

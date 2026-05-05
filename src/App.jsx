@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { seedDemoData } from './utils/demoData';
 import {
   Activity, Home, ClipboardList, User, Radar as RadarIcon,
-  TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle
+  TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle,
+  Plus, MessageSquare
 } from 'lucide-react';
 import { formatRelative, formatDate } from './utils/dateUtils';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from './utils/constants';
@@ -160,14 +161,15 @@ function NotificationPanel({ onClose }) {
 function BottomNav() {
   const { user } = useAuth();
   const location = useLocation();
+  const { notifications } = useNotifications();
 
   const hiddenPaths = ['/', '/login', '/register'];
   if (hiddenPaths.includes(location.pathname)) return null;
-  if (location.pathname.includes('create-mission')) return null;
   if (location.pathname.includes('/chat/')) return null;
   if (user?.role === 'admin') return null;
 
-  const isActive = (path) => location.pathname.startsWith(path);
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const unreadNotifs = notifications.filter(n => !n.read).length;
 
   if (user?.role === 'patient') {
     return (
@@ -176,13 +178,34 @@ function BottomNav() {
           <Home size={20} className="bottom-nav-icon" />
           <span>Accueil</span>
         </Link>
-        <Link to="/patient/missions" className={`bottom-nav-item ${isActive('/patient/missions') ? 'active' : ''}`}>
-          <ClipboardList size={20} className="bottom-nav-icon" />
-          <span>Missions</span>
-        </Link>
         <Link to="/patient/calendar" className={`bottom-nav-item ${isActive('/patient/calendar') ? 'active' : ''}`}>
           <CalendarIcon size={20} className="bottom-nav-icon" />
-          <span>Calendrier</span>
+          <span>Rendez-vous</span>
+        </Link>
+        <Link to="/patient/create-mission" className={`bottom-nav-item ${isActive('/patient/create-mission') ? 'active' : ''}`} style={{ position: 'relative' }}>
+          <div style={{
+            background: 'var(--color-primary)',
+            color: 'white',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+            marginTop: '-12px',
+            marginBottom: '2px'
+          }}>
+            <Plus size={20} color="white" />
+          </div>
+          <span>Nouveau</span>
+        </Link>
+        <Link to="/patient/messages" className={`bottom-nav-item ${isActive('/patient/messages') ? 'active' : ''}`} style={{ position: 'relative' }}>
+          <MessageSquare size={20} className="bottom-nav-icon" />
+          <span>Messages</span>
+          {unreadNotifs > 0 && (
+            <span className="badge-nav">{unreadNotifs}</span>
+          )}
         </Link>
         <Link to="/patient/profile" className={`bottom-nav-item ${isActive('/patient/profile') ? 'active' : ''}`}>
           <User size={20} className="bottom-nav-icon" />
@@ -207,9 +230,12 @@ function BottomNav() {
           <CalendarIcon size={20} className="bottom-nav-icon" />
           <span>Calendrier</span>
         </Link>
-        <Link to="/pro/earnings" className={`bottom-nav-item ${isActive('/pro/earnings') ? 'active' : ''}`}>
-          <TrendingUp size={20} className="bottom-nav-icon" />
-          <span>Revenus</span>
+        <Link to="/pro/messages" className={`bottom-nav-item ${isActive('/pro/messages') ? 'active' : ''}`} style={{ position: 'relative' }}>
+          <MessageSquare size={20} className="bottom-nav-icon" />
+          <span>Messages</span>
+          {unreadNotifs > 0 && (
+            <span className="badge-nav">{unreadNotifs}</span>
+          )}
         </Link>
         <Link to="/pro/profile" className={`bottom-nav-item ${isActive('/pro/profile') ? 'active' : ''}`}>
           <User size={20} className="bottom-nav-icon" />
@@ -258,6 +284,7 @@ import CalendarPage from './pages/CalendarPage';
 import ChatPage from './pages/ChatPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ProPublicProfile from './pages/professional/ProPublicProfile';
+import MessagesPage from './pages/MessagesPage';
 
 // ── Main App Content ──
 function AppContent() {
@@ -300,6 +327,7 @@ function AppContent() {
         <Route path="/patient/missions" element={<ProtectedRoute allowedRoles={['patient']}><PatientMissions /></ProtectedRoute>} />
         <Route path="/patient/profile" element={<ProtectedRoute allowedRoles={['patient']}><PatientProfile /></ProtectedRoute>} />
         <Route path="/patient/calendar" element={<ProtectedRoute allowedRoles={['patient']}><CalendarPage /></ProtectedRoute>} />
+        <Route path="/patient/messages" element={<ProtectedRoute allowedRoles={['patient']}><MessagesPage /></ProtectedRoute>} />
 
         {/* Professional Routes */}
         <Route path="/pro/dashboard" element={<ProtectedRoute allowedRoles={['professional']}><ProDashboard /></ProtectedRoute>} />
@@ -310,6 +338,7 @@ function AppContent() {
         <Route path="/pro/earnings" element={<ProtectedRoute allowedRoles={['professional']}><Earnings /></ProtectedRoute>} />
         <Route path="/pro/profile" element={<ProtectedRoute allowedRoles={['professional']}><ProProfile /></ProtectedRoute>} />
         <Route path="/pro/calendar" element={<ProtectedRoute allowedRoles={['professional']}><CalendarPage /></ProtectedRoute>} />
+        <Route path="/pro/messages" element={<ProtectedRoute allowedRoles={['professional']}><MessagesPage /></ProtectedRoute>} />
 
         {/* Chat Route */}
         <Route path="/chat/:missionId" element={<ProtectedRoute allowedRoles={['patient', 'professional']}><ChatPage /></ProtectedRoute>} />
