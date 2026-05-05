@@ -105,6 +105,20 @@ export const ratingService = {
     return { average: Math.round((sum / ratings.length) * 10) / 10, count: ratings.length };
   },
 
+  async getAll() {
+    const localRatings = storageService.getRatings();
+    try {
+      const { data } = await supabase.from('ratings').select('*').order('created_at', { ascending: false });
+      const remotes = (data || []).map(r => ({
+        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+      }));
+      return [...localRatings, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch {
+      return localRatings;
+    }
+  },
+
   async getAllProRatings() {
     const localRatings = storageService.getRatings();
     const { data } = await supabase.from('ratings').select('*');
