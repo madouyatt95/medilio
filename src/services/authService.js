@@ -157,6 +157,40 @@ export const authService = {
     }
     if (updates.disabled !== undefined) dbUpdates.disabled = updates.disabled;
 
+    // ── Local Demo Update ──
+    const localUsers = storageService.getUsers();
+    const localIdx = localUsers.findIndex(u => u.id === userId);
+    if (localIdx !== -1) {
+      const existing = localUsers[localIdx];
+      // Recursive merge or manual mapping
+      const updatedUser = {
+        ...existing,
+        ...updates,
+        professionalInfo: updates.professionalInfo ? {
+          ...(existing.professionalInfo || {}),
+          ...updates.professionalInfo,
+          serviceArea: {
+            ...(existing.professionalInfo?.serviceArea || {}),
+            ...(updates.professionalInfo.serviceArea || {})
+          }
+        } : existing.professionalInfo,
+        address: updates.address ? {
+          ...(existing.address || {}),
+          ...updates.address
+        } : existing.address
+      };
+      localUsers[localIdx] = updatedUser;
+      storageService.setUsers(localUsers);
+
+      // Also update current session if it's the same user
+      const currentUser = storageService.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        storageService.setCurrentUser(updatedUser);
+      }
+      
+      return updatedUser;
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update(dbUpdates)

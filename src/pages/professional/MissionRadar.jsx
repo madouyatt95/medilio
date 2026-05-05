@@ -1,164 +1,72 @@
-// ── Mission Radar (Professional) — with Interactive Map ──
-import { useState, useEffect } from 'react';
+// ── Mission Radar (Premium Dark Glass Style) ──
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
-import geocodingService from '../../services/geocodingService';
-import emailService from '../../services/emailService';
 import authService from '../../services/authService';
-import { CARE_TYPES, CITIES } from '../../utils/constants';
+import emailService from '../../services/emailService';
+import { CARE_TYPES, CITIES_GEO } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
-import { filterMissionsByProximity, getDistanceLabel, calculateDistance, CITY_COORDS } from '../../utils/geoUtils';
-import InteractiveMap, { MARKER_COLORS } from '../../components/InteractiveMap';
+import InteractiveMap from '../../components/InteractiveMap';
 import {
-  Radar, MapPin, Calendar, Clock, Search, Filter,
-  ChevronRight, Send, User, ClipboardList, Crosshair, Map as MapIcon, List
+  MapPin, Calendar, Clock, Filter, Search,
+  Navigation, List, Map as MapIcon, ChevronRight,
+  Target, Send, ArrowLeft
 } from 'lucide-react';
 
 export default function MissionRadar() {
   const { user } = useAuth();
-  const { showToast } = useNotifications();
   const navigate = useNavigate();
+  const { showToast } = useNotifications();
+  const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [missions, setMissions] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [cityFilter, setCityFilter] = useState(user?.professionalInfo?.serviceArea?.city || '');
-  const [radiusFilter, setRadiusFilter] = useState(20);
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-  const [apiCities, setApiCities] = useState([]);
-  const [selectedCityCoords, setSelectedCityCoords] = useState(null);
-  const [careFilter, setCareFilter] = useState('');
-  const [applyingId, setApplyingId] = useState(null);
-  const [applyMessage, setApplyMessage] = useState('');
-  const [showApplyModal, setShowApplyModal] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [userCoords, setUserCoords] = useState(null);
-  const [viewMode, setViewMode] = useState('map'); // 'map' | 'list'
-  const [geocodedMissions, setGeocodedMissions] = useState({}); // missionId -> {lat, lng}
+  const [loading, setLoading] = useState(true);
   const [highlightedMission, setHighlightedMission] = useState(null);
 
+  // Filters
+  const [cityFilter, setCityFilter] = useState('');
+  const [radiusFilter, setRadiusFilter] = useState(20);
+  const [careFilter, setCareFilter] = useState('');
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+
   useEffect(() => {
-    if (cityFilter.length < 2) { setApiCities([]); return; }
-    const delay = setTimeout(async () => {
+    async function loadMissions() {
       try {
-        const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${cityFilter}&fields=nom,centre&limit=5`);
-        const data = await res.json();
-        setApiCities(data.map(d => ({ nom: d.nom, coords: d.centre?.coordinates })));
-      } catch (e) {
-        console.error(e);
+        const data = await missionService.getOpenMissions();
+        setMissions(data);
+        setFiltered(data);
+      } catch (err) {
+        showToast('Erreur lors du chargement des missions', 'error');
+      } finally {
+        setLoading(false);
       }
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [cityFilter]);
-
-  // Detect user's city from browser GPS
-  const handleGeolocate = () => {
-    if (!navigator.geolocation) {
-      showToast('La géolocalisation n\'est pas disponible sur votre appareil', 'error');
-      return;
     }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setUserCoords({ lat: latitude, lng: longitude });
-
-        // Reverse geocode to find city name
-        const reverseResult = await geocodingService.reverseGeocode(latitude, longitude);
-        if (reverseResult?.city) {
-          setCityFilter(reverseResult.city);
-          showToast(`📍 Position détectée : ${reverseResult.city}`, 'success');
-        } else {
-          // Fallback: find closest known city
-          let best = null;
-          let bestDist = Infinity;
-          for (const [city, coords] of Object.entries(CITY_COORDS)) {
-            const d = calculateDistance(latitude, longitude, coords.lat, coords.lng);
-            if (d < bestDist) {
-              bestDist = d;
-              best = city;
-            }
-          }
-          if (best) {
-            setCityFilter(best);
-            showToast(`📍 Position détectée : ${best} (${Math.round(bestDist)} km)`, 'success');
-          }
-        }
-        setLocating(false);
-      },
-      (err) => {
-        showToast('Impossible d\'obtenir votre position. Vérifiez les permissions.', 'error');
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
-  useEffect(() => {
-    async function load() {
-      const open = await missionService.getOpenMissions();
-      setMissions(open);
-    }
-    load();
+    loadMissions();
   }, []);
 
-  // Geocode missions that have addresses but no lat/lng
-  useEffect(() => {
-    async function geocodeMissions() {
-      const toGeocode = missions.filter(m =>
-        m.address?.street && m.address?.city && !m.address?.lat && !geocodedMissions[m.id]
-      );
-      if (toGeocode.length === 0) return;
-
-      const newGeocoded = { ...geocodedMissions };
-      for (const m of toGeocode) {
-        const result = await geocodingService.geocodeAddress(
-          m.address.street, m.address.city, m.address.postalCode
-        );
-        if (result) {
-          newGeocoded[m.id] = { lat: result.lat, lng: result.lng };
-        }
-        // Small delay to respect API rate limits
-        await new Promise(r => setTimeout(r, 100));
-      }
-      setGeocodedMissions(newGeocoded);
-    }
-    if (missions.length > 0) geocodeMissions();
-  }, [missions]);
-
+  // Filter logic
   useEffect(() => {
     let result = [...missions];
 
-    if (cityFilter || userCoords) {
-      result = missions.filter(m => {
-        // Get mission coords: from address or from geocoded cache
-        const mLat = m.address?.lat || geocodedMissions[m.id]?.lat;
-        const mLng = m.address?.lng || geocodedMissions[m.id]?.lng;
-
-        // If we have GPS position of the user, filter by real distance
-        if (userCoords && mLat && mLng) {
-          const dist = calculateDistance(userCoords.lat, userCoords.lng, mLat, mLng);
+    if (cityFilter) {
+      const cityGeo = CITIES_GEO[cityFilter];
+      result = result.filter(m => {
+        // If mission has lat/lng, calculate distance
+        if (m.address?.lat && m.address?.lng && cityGeo) {
+          const dist = calculateDistance(cityGeo.lat, cityGeo.lng, m.address.lat, m.address.lng);
           m.computedDistance = dist;
           return dist <= radiusFilter;
         }
 
-        // If we have coords for both, use them
-        const originCoords = selectedCityCoords || (cityFilter ? CITY_COORDS[cityFilter] : null);
-        if (originCoords && mLat && mLng) {
-          const dist = calculateDistance(originCoords.lat, originCoords.lng, mLat, mLng);
-          m.computedDistance = dist;
-          return dist <= radiusFilter;
-        }
-
-        // Fallback: city name matching (case-insensitive, partial)
-        if (cityFilter && m.address?.city) {
+        // Fallback: city name matching
+        if (m.address?.city) {
           m.computedDistance = null;
           return m.address.city.toLowerCase().includes(cityFilter.toLowerCase()) ||
                  cityFilter.toLowerCase().includes(m.address.city.toLowerCase());
         }
 
-        // No filter criteria met — still show the mission
-        m.computedDistance = null;
         return true;
       });
     }
@@ -169,368 +77,231 @@ export default function MissionRadar() {
     setFiltered(result);
   }, [missions, cityFilter, radiusFilter, careFilter]);
 
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
   const hasApplied = (mission) => mission.applicants?.some(a => a.proId === user?.id);
 
-  const handleApply = (missionId) => {
-    setApplyingId(missionId);
-    setApplyMessage('');
-    setShowApplyModal(true);
-  };
-
-  const submitApply = async () => {
-    try {
-      const updatedMission = await missionService.applyToMission(applyingId, user.id, applyMessage);
-      const updated = await missionService.getOpenMissions();
-      setMissions(updated);
-      showToast('Candidature envoyée !', 'success');
-
-      // Notify patient by email
-      if (updatedMission?.patientId) {
-        const allUsers = await authService.getAllUsers();
-        const patient = allUsers.find(u => u.id === updatedMission.patientId);
-        if (patient?.email) {
-          emailService.notifyNewApplication({
-            patientEmail: patient.email,
-            proName: `${user.firstName} ${user.lastName}`,
-            mission: updatedMission,
-            careTypeLabel: getCareLabel(updatedMission.careType),
-            message: applyMessage,
-          });
-        }
-      }
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-    setShowApplyModal(false);
-  };
-
-  // Build map markers
   const getMapMarkers = () => {
-    const markers = [];
-
-    // User position
-    if (userCoords) {
-      markers.push({
-        lat: userCoords.lat,
-        lng: userCoords.lng,
-        label: 'Ma position',
-        color: MARKER_COLORS.professional,
-        popupContent: '<div class="map-popup-content"><strong>📍 Ma position</strong></div>',
-      });
-    }
-
-    // Selected city center
-    if (selectedCityCoords) {
-      markers.push({
-        lat: selectedCityCoords.lat,
-        lng: selectedCityCoords.lng,
-        label: cityFilter,
-        color: '#64748b',
-        popupContent: `<div class="map-popup-content"><strong>📍 Centre : ${cityFilter}</strong></div>`,
-      });
-    }
-
-    // Mission markers
-    filtered.forEach(m => {
-      const coords = m.address?.lat && m.address?.lng
-        ? { lat: m.address.lat, lng: m.address.lng }
-        : geocodedMissions[m.id]
-          ? geocodedMissions[m.id]
-          : CITY_COORDS[m.address?.city]
-            ? CITY_COORDS[m.address.city]
-            : null;
-
-      if (coords) {
-        markers.push({
-          lat: coords.lat,
-          lng: coords.lng,
-          label: getCareLabel(m.careType),
-          color: MARKER_COLORS.missionOpen,
-          missionId: m.id,
-          popupContent: `
-            <div class="map-popup-content">
-              <div class="map-popup-type">${getCareLabel(m.careType)}</div>
-              <strong>${m.patientInfo?.name || 'Patient'}</strong>
-              <div class="map-popup-address">📍 ${m.address?.street || ''}, ${m.address?.city || ''}</div>
-              <div class="map-popup-time">📅 ${formatDate(m.scheduledDate)} · ${m.estimatedCost ? m.estimatedCost + ' €' : ''}</div>
-            </div>
-          `,
-        });
-      }
-    });
-
-    return markers;
+    return filtered.map(m => ({
+      id: m.id,
+      lat: m.address?.lat || 48.8566,
+      lng: m.address?.lng || 2.3522,
+      title: getCareLabel(m.careType),
+      missionId: m.id,
+      color: hasApplied(m) ? '#10B981' : '#06B6D4'
+    }));
   };
 
-  // Radius circle for map
   const getRadiusCircle = () => {
-    if (userCoords && cityFilter) {
-      return { lat: userCoords.lat, lng: userCoords.lng, radius: radiusFilter };
-    }
-    if (selectedCityCoords) {
-      return { lat: selectedCityCoords.lat, lng: selectedCityCoords.lng, radius: radiusFilter };
-    }
-    if (cityFilter && CITY_COORDS[cityFilter]) {
-      return { lat: CITY_COORDS[cityFilter].lat, lng: CITY_COORDS[cityFilter].lng, radius: radiusFilter };
-    }
-    return null;
+    if (!cityFilter) return null;
+    const geo = CITIES_GEO[cityFilter];
+    if (!geo) return null;
+    return {
+      center: [geo.lat, geo.lng],
+      radius: radiusFilter * 1000 // meters
+    };
   };
+
+  const getDistanceLabel = (fCity, mCity) => {
+    if (fCity.toLowerCase() === mCity.toLowerCase()) return 'Dans votre ville';
+    return mCity;
+  };
+
+  if (loading) return <div className="loading-screen" style={{ background: '#0f172a' }}><div className="spinner spinner-lg" /></div>;
 
   return (
-    <div className="dark-mode" style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#0F172A',
-      backgroundImage: `
-        radial-gradient(circle at center, rgba(37, 99, 235, 0.2) 0%, #0F172A 80%),
-        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e293b' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
-      `,
-      backgroundAttachment: 'fixed',
-      display: 'flex',
-      flexDirection: 'column',
-      overflowX: 'hidden',
-      width: '100%'
-    }}>
-      <div className="page-container" style={{ position: 'relative', zIndex: 10, width: '100%', overflowX: 'hidden' }}>
-        {/* Header */}
-        <div style={{ padding: 'var(--space-4) 0', marginBottom: 'var(--space-4)' }}>
-          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-            <Radar size={28} style={{ color: 'var(--color-primary-light)' }} className="pulse-glow" />
-            Radar Missions
+    <div className="page-container" style={{ background: '#0f172a', minHeight: '100vh', color: 'white' }}>
+      {/* Dynamic Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <button className="btn btn-ghost btn-icon" onClick={() => navigate(-1)} style={{ color: 'white' }}>
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, margin: 0 }}>Radar de Missions</h1>
+            <p style={{ fontSize: 'var(--font-xs)', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+              {filtered.length} missions disponibles
+            </p>
           </div>
-          <p className="page-subtitle" style={{ color: 'rgba(255,255,255,0.8)', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{filtered.length} mission(s) disponible(s) à proximité</p>
         </div>
-
-        {/* Filters */}
-        <div className="glass-panel" style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)', color: 'white', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <Filter size={16} />
-              <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              {/* View mode toggle */}
-              <div style={{
-                display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.2)',
-              }}>
-                <button
-                  onClick={() => setViewMode('map')}
-                  style={{
-                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px',
-                    background: viewMode === 'map' ? 'rgba(255,255,255,0.2)' : 'transparent',
-                    color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer',
-                  }}
-                >
-                  <MapIcon size={12} /> Carte
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  style={{
-                    padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px',
-                    background: viewMode === 'list' ? 'rgba(255,255,255,0.2)' : 'transparent',
-                    color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer',
-                  }}
-                >
-                  <List size={12} /> Liste
-                </button>
-              </div>
-              <button
-                onClick={handleGeolocate}
-                disabled={locating}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '6px 14px', borderRadius: 'var(--radius-full)',
-                  background: locating ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #06B6D4, #2563EB)',
-                  color: 'white', border: 'none', fontSize: '12px', fontWeight: 600,
-                  cursor: locating ? 'wait' : 'pointer',
-                  boxShadow: '0 4px 12px rgba(6,182,212,0.3)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Crosshair size={14} style={{ animation: locating ? 'spin 1s linear infinite' : 'none' }} />
-                {locating ? 'Localisation...' : 'Me localiser'}
-              </button>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-3)', position: 'relative', zIndex: 2000 }}>
-            <div className="form-group" style={{ position: 'relative', zIndex: 2000 }}>
-              <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter}
-                onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }} 
-                onFocus={() => setShowCitySuggestions(true)}
-                onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
-                style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }} />
-              
-              {showCitySuggestions && cityFilter && (
-                <ul style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
-                  background: 'white', borderRadius: 'var(--radius-md)',
-                  boxShadow: 'var(--shadow-lg)', maxHeight: '150px', overflowY: 'auto',
-                  border: '1px solid var(--border-color)', padding: '4px 0', marginTop: '4px'
-                }}>
-                  {apiCities.map((c, i) => (
-                    <li key={i} 
-                      onMouseDown={(e) => {
-                        e.preventDefault(); // prevent blur
-                        setCityFilter(c.nom);
-                        if (c.coords) {
-                          setSelectedCityCoords({ lat: c.coords[1], lng: c.coords[0] });
-                          setUserCoords(null);
-                        }
-                        setShowCitySuggestions(false);
-                      }}
-                      style={{ padding: '8px 12px', fontSize: 'var(--font-sm)', color: '#000', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
-                    >
-                      {c.nom}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="form-group">
-              <select className="form-input form-select" value={careFilter}
-                onChange={e => setCareFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}>
-                <option value="">Tous les types</option>
-                {CARE_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </div>
-          </div>
-          {cityFilter && (
-            <div style={{ marginTop: 'var(--space-4)' }}>
-              <label className="form-label" style={{ fontSize: 'var(--font-xs)', color: 'white' }}>Rayon : {radiusFilter} km</label>
-              <input type="range" min="5" max="100" step="5" value={radiusFilter}
-                onChange={e => setRadiusFilter(Number(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--color-primary-light)' }} />
-            </div>
-          )}
+        <div className="glass-pill" style={{ display: 'flex', gap: 4, padding: 4 }}>
+          <button 
+            onClick={() => setViewMode('map')}
+            style={{ 
+              padding: '8px 12px', borderRadius: '10px', border: 'none',
+              background: viewMode === 'map' ? 'var(--color-primary)' : 'transparent',
+              color: 'white', transition: 'all 0.3s'
+            }}
+          >
+            <MapIcon size={18} />
+          </button>
+          <button 
+            onClick={() => setViewMode('list')}
+            style={{ 
+              padding: '8px 12px', borderRadius: '10px', border: 'none',
+              background: viewMode === 'list' ? 'var(--color-primary)' : 'transparent',
+              color: 'white', transition: 'all 0.3s'
+            }}
+          >
+            <List size={18} />
+          </button>
         </div>
+      </div>
 
-        {/* Map View */}
-        {viewMode === 'map' && (
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <InteractiveMap
-              markers={getMapMarkers()}
-              height={350}
-              darkMode={true}
-              radiusCircle={getRadiusCircle()}
-              autoFit={true}
-              onMarkerClick={(marker) => {
-                if (marker.missionId) {
-                  setHighlightedMission(marker.missionId);
-                  // Scroll to mission in list below
-                  const el = document.getElementById(`mission-${marker.missionId}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-              }}
+      {/* Glass Filters */}
+      <div className="glass-panel" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="form-group" style={{ position: 'relative', marginBottom: 0 }}>
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.5)' }}>
+              <Navigation size={16} />
+            </div>
+            <input 
+              className="form-input" 
+              placeholder="Ville..."
+              value={cityFilter}
+              onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }}
+              onFocus={() => setShowCitySuggestions(true)}
+              style={{ paddingLeft: '36px', fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}
             />
+            {showCitySuggestions && cityFilter && (
+              <ul className="glass-panel" style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                marginTop: 4, padding: 0, overflow: 'hidden', background: 'white'
+              }}>
+                {Object.keys(CITIES_GEO).filter(c => c.toLowerCase().includes(cityFilter.toLowerCase())).slice(0, 5).map(c => (
+                  <li key={c} onClick={() => { setCityFilter(c); setShowCitySuggestions(false); }}
+                    style={{ padding: '8px 12px', fontSize: 'var(--font-sm)', color: '#000', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
-
-        {/* Missions List */}
-        {filtered.length === 0 ? (
-          <div className="glass-panel" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-4)' }}>
-            <div className="empty-state-icon" style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}><Search size={28} /></div>
-            <div className="empty-state-title" style={{ color: 'white' }}>Aucune mission trouvée</div>
-            <div className="empty-state-text" style={{ color: 'rgba(255,255,255,0.7)' }}>Essayez d'élargir votre zone de recherche ou vos filtres.</div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <select className="form-input form-select" value={careFilter}
+              onChange={e => setCareFilter(e.target.value)} style={{ fontSize: 'var(--font-sm)', background: 'rgba(255,255,255,0.9)', color: '#000' }}>
+              <option value="">Tous les types</option>
+              {CARE_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
           </div>
-        ) : (
-          <div style={{ 
-            display: viewMode === 'list' ? 'flex' : 'flex',
-            flexDirection: viewMode === 'list' ? 'column' : 'row',
-            overflowX: viewMode === 'list' ? 'visible' : 'auto',
-            gap: 'var(--space-4)', 
-            paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', 
-            ...(viewMode === 'list' ? {} : {
-              margin: '0 calc(var(--content-padding) * -1)', 
-              paddingLeft: 'var(--content-padding)', 
-              paddingRight: 'var(--content-padding)', 
-              scrollbarWidth: 'none'
-            })
-          }}>
-            {filtered.map(mission => (
-              <div 
-                key={mission.id}
-                id={`mission-${mission.id}`}
-                style={{ 
-                  minWidth: viewMode === 'list' ? 'auto' : '300px', 
-                  maxWidth: viewMode === 'list' ? '100%' : '300px', 
-                  display: 'flex', flexDirection: 'column',
-                  background: highlightedMission === mission.id 
-                    ? 'rgba(6, 182, 212, 0.2)' 
-                    : 'rgba(30, 41, 59, 0.8)', 
-                  backdropFilter: 'blur(20px)', borderRadius: 'var(--radius-xl)',
-                  border: highlightedMission === mission.id 
-                    ? '2px solid rgba(6, 182, 212, 0.5)' 
-                    : '1px solid rgba(255,255,255,0.1)', 
-                  overflow: 'hidden', 
-                  boxShadow: highlightedMission === mission.id
-                    ? '0 10px 40px -10px rgba(6, 182, 212, 0.3)'
-                    : '0 10px 40px -10px rgba(0,0,0,0.5)',
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800, color: 'white' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 10px #67E8F9' }} />
-                      {getCareLabel(mission.careType)}
-                    </div>
-                    {cityFilter && mission.address?.city && (
-                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {mission.computedDistance !== undefined && mission.computedDistance !== null
-                          ? `${mission.computedDistance.toFixed(1)} km`
-                          : (getDistanceLabel(cityFilter, mission.address.city) || mission.address.city)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ padding: 'var(--space-4)', flex: 1 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', color: 'rgba(255,255,255,0.9)', fontSize: 'var(--font-sm)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={14} color="#64748b" /> {formatDate(mission.scheduledDate)}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} color="#64748b" /> {mission.address?.street ? `${mission.address.street}, ` : ''}{mission.address?.city}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={14} color="#64748b" /> {mission.estimatedDuration || '—'} minutes</div>
-                  </div>
-                </div>
-
-                <div style={{ padding: 'var(--space-4)', background: 'rgba(15, 23, 42, 0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#67E8F9', fontWeight: 800, fontSize: 'var(--font-lg)' }}>{mission.estimatedCost ? `${mission.estimatedCost} €` : '-'}</div>
-                  {hasApplied(mission) ? (
-                    <span style={{ color: '#10B981', fontWeight: 700, fontSize: '14px' }}>Postulé ✓</span>
-                  ) : (
-                    <button className="btn btn-primary btn-glow btn-sm" style={{ borderRadius: '99px' }} onClick={(e) => { e.stopPropagation(); handleApply(mission.id); }}>
-                      <Send size={14} /> J'y vais
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+        </div>
+        {cityFilter && (
+          <div style={{ marginTop: 'var(--space-4)' }}>
+            <label className="form-label" style={{ fontSize: 'var(--font-xs)', color: 'white' }}>Rayon : {radiusFilter} km</label>
+            <input type="range" min="5" max="100" step="5" value={radiusFilter}
+              onChange={e => setRadiusFilter(Number(e.target.value))}
+              style={{ width: '100%', accentColor: 'var(--color-primary-light)' }} />
           </div>
         )}
       </div>
 
-      {/* Apply Modal */}
-      {showApplyModal && (
-        <div className="modal-overlay" onClick={() => setShowApplyModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <div className="modal-header">
-              <h3 className="modal-title">Postuler à cette mission</h3>
+      {/* View Content */}
+      {viewMode === 'map' && (
+        <div style={{ marginBottom: 'var(--space-5)' }}>
+          <InteractiveMap
+            markers={getMapMarkers()}
+            height={350}
+            darkMode={true}
+            radiusCircle={getRadiusCircle()}
+            autoFit={true}
+            onMarkerClick={(marker) => {
+              if (marker.missionId) {
+                setHighlightedMission(marker.missionId);
+                const el = document.getElementById(`mission-${marker.missionId}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Missions List/Scroll */}
+      {filtered.length === 0 ? (
+        <div className="glass-panel" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-4)' }}>
+          <div className="empty-state-icon" style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}><Search size={28} /></div>
+          <div className="empty-state-title" style={{ color: 'white' }}>Aucune mission trouvée</div>
+        </div>
+      ) : (
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: viewMode === 'list' ? 'column' : 'row',
+          overflowX: viewMode === 'list' ? 'visible' : 'auto',
+          gap: 'var(--space-4)', 
+          paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', 
+          ...(viewMode === 'list' ? {} : {
+            margin: '0 calc(var(--content-padding) * -1)', 
+            paddingLeft: 'var(--content-padding)', 
+            paddingRight: 'var(--content-padding)', 
+            scrollbarWidth: 'none'
+          })
+        }}>
+          {filtered.map(mission => (
+            <div 
+              key={mission.id}
+              id={`mission-${mission.id}`}
+              onClick={() => navigate(`/pro/mission/${mission.id}`)}
+              style={{ 
+                minWidth: viewMode === 'list' ? 'auto' : '300px', 
+                maxWidth: viewMode === 'list' ? '100%' : '300px', 
+                display: 'flex', flexDirection: 'column',
+                cursor: 'pointer',
+                background: highlightedMission === mission.id 
+                  ? 'rgba(6, 182, 212, 0.2)' 
+                  : 'rgba(30, 41, 59, 0.8)', 
+                backdropFilter: 'blur(20px)', borderRadius: 'var(--radius-xl)',
+                border: highlightedMission === mission.id 
+                  ? '2px solid rgba(6, 182, 212, 0.5)' 
+                  : '1px solid rgba(255,255,255,0.1)', 
+                overflow: 'hidden', 
+                boxShadow: highlightedMission === mission.id
+                  ? '0 10px 40px -10px rgba(6, 182, 212, 0.3)'
+                  : '0 10px 40px -10px rgba(0,0,0,0.5)',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800, color: 'white' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 10px #67E8F9' }} />
+                    {getCareLabel(mission.careType)}
+                  </div>
+                  {mission.address?.city && (
+                    <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {mission.address.city}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ padding: 'var(--space-4)', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', color: 'rgba(255,255,255,0.9)', fontSize: 'var(--font-sm)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={14} color="#64748b" /> {formatDate(mission.scheduledDate)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} color="#64748b" /> {mission.address?.city}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={14} color="#64748b" /> {mission.estimatedDuration || '—'} min</div>
+                </div>
+              </div>
+
+              <div style={{ padding: 'var(--space-4)', background: 'rgba(15, 23, 42, 0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ color: '#67E8F9', fontWeight: 800, fontSize: 'var(--font-lg)' }}>{mission.estimatedCost ? `${mission.estimatedCost} €` : '-'}</div>
+                {hasApplied(mission) ? (
+                  <span style={{ color: '#10B981', fontWeight: 700, fontSize: '14px' }}>Postulé ✓</span>
+                ) : (
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Voir détails <ChevronRight size={14} style={{ verticalAlign: 'middle' }} /></div>
+                )}
+              </div>
             </div>
-            <div className="form-group" style={{ marginBottom: 'var(--space-5)' }}>
-              <label className="form-label">Message (optionnel)</label>
-              <textarea className="form-input form-textarea"
-                placeholder="Présentez-vous et expliquez pourquoi vous êtes qualifié..."
-                value={applyMessage} onChange={e => setApplyMessage(e.target.value)} />
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-              <button className="btn btn-secondary" style={{ flex: 1 }}
-                onClick={() => setShowApplyModal(false)}>Annuler</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={submitApply}>
-                <Send size={16} /> Envoyer
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>

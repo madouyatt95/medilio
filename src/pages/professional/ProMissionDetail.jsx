@@ -22,6 +22,8 @@ export default function ProMissionDetail() {
   const [noteContent, setNoteContent] = useState('');
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [patient, setPatient] = useState(null);
+  const [applyMessage, setApplyMessage] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -55,6 +57,20 @@ export default function ProMissionDetail() {
     setNoteContent('');
     setShowNoteForm(false);
     showToast('Note de soins ajoutée !', 'success');
+  };
+
+  const handleApply = async () => {
+    try {
+      setIsApplying(true);
+      await missionService.applyToMission(mission.id, user.id, applyMessage);
+      showToast('Candidature envoyée avec succès !', 'success');
+      const updated = await missionService.getById(id);
+      setMission(updated);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   return (
@@ -206,6 +222,42 @@ export default function ProMissionDetail() {
           <CheckCircle size={18} /> Marquer comme terminée
         </button>
       )}
+
+      {mission.status === 'open' && (
+        <div className="section" style={{ marginTop: 'var(--space-4)' }}>
+          {mission.applicants?.some(a => a.proId === user?.id) ? (
+            <div className="card" style={{ textAlign: 'center', background: 'var(--bg-input)', border: '1px dashed var(--border-color)' }}>
+              <div style={{ color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <CheckCircle size={20} /> Candidature envoyée
+              </div>
+              <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginTop: 4 }}>
+                Le patient a été notifié de votre intérêt.
+              </div>
+            </div>
+          ) : (
+            <div className="card">
+              <h3 style={{ fontWeight: 600, marginBottom: 'var(--space-3)', fontSize: 'var(--font-sm)' }}>
+                Intéressé par cette mission ?
+              </h3>
+              <textarea 
+                className="form-input form-textarea"
+                placeholder="Ajoutez un message pour le patient (optionnel)..."
+                value={applyMessage}
+                onChange={e => setApplyMessage(e.target.value)}
+                style={{ marginBottom: 'var(--space-3)', minHeight: '80px' }}
+              />
+              <button 
+                className="btn btn-primary btn-block" 
+                onClick={handleApply}
+                disabled={isApplying}
+              >
+                {isApplying ? 'Envoi...' : 'Postuler à la mission'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
+
   );
 }
