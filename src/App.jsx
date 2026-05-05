@@ -136,6 +136,7 @@ function Header() {
 // ── Notification Panel ──
 function NotificationPanel({ onClose }) {
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -157,7 +158,11 @@ function NotificationPanel({ onClose }) {
             notifications.map(n => (
               <div key={n.id}
                 className={`notif-item ${!n.read ? 'unread' : ''}`}
-                onClick={() => markAsRead(n.id)}>
+                onClick={() => {
+                  markAsRead(n.id);
+                  if (n.link) navigate(n.link);
+                  onClose();
+                }}>
                 {!n.read && <div className="notif-item-dot" />}
                 <div style={{ flex: 1 }}>
                   <div className="notif-item-title">{n.title}</div>
