@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, Mail, Lock, Activity } from 'lucide-react';
+import logo from '../assets/logo-medilio.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -43,9 +44,9 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card animate-fadeIn">
         <div className="auth-header">
-          <div className="auth-logo">
-            <Activity size={28} />
-            Medilio
+          <div className="auth-logo" style={{ flexDirection: 'column', gap: '12px' }}>
+            <img src={logo} alt="Medilio" style={{ height: '64px', width: 'auto' }} />
+            <span style={{ fontSize: 'var(--font-2xl)', fontWeight: 800 }}>Medilio</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)' }}>
             Connectez-vous à votre compte

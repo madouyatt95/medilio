@@ -4,6 +4,7 @@ import {
   Heart, Shield, Clock, MapPin, Users, Star,
   FileText, Bell, ChevronRight, Activity
 } from 'lucide-react';
+import logo from '../assets/logo-medilio.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="landing-hero">
         <div className="landing-hero-badge">
-          <Activity size={16} />
+          <img src={logo} alt="" style={{ height: '24px', width: 'auto', marginRight: '8px' }} />
           Plateforme de soins à domicile
         </div>
         <h1>

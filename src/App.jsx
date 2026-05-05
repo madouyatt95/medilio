@@ -12,6 +12,7 @@ import { formatRelative, formatDate } from './utils/dateUtils';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from './utils/constants';
 import missionService from './services/missionService';
 import supabase from './lib/supabase';
+import logo from './assets/logo-medilio.png';
 
 // ── Error Boundary ──
 import React from 'react';
@@ -96,9 +97,9 @@ function Header() {
   return (
     <>
       <header className="header">
-        <div className="header-logo" onClick={() => navigate(user ? (user.role === 'professional' ? '/pro/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/patient/dashboard') : '/')} style={{ cursor: 'pointer' }}>
-          <div className="header-logo-icon"><Activity size={20} /></div>
-          <span>Medilio</span>
+        <div className="header-logo" onClick={() => navigate(user ? (user.role === 'professional' ? '/pro/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/patient/dashboard') : '/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <img src={logo} alt="Medilio" style={{ height: '32px', width: 'auto', marginRight: 'var(--space-2)' }} />
+          <span style={{ fontWeight: 800, fontSize: 'var(--font-lg)', letterSpacing: '-0.02em' }}>Medilio</span>
         </div>
         <div className="header-actions">
           <button className="header-notif-btn" onClick={() => setShowNotifs(!showNotifs)}>
