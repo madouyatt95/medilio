@@ -76,8 +76,10 @@ export default function ChatPage() {
 
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100vh',
+      display: 'flex', flexDirection: 'column', 
+      height: 'calc(100dvh - var(--header-height))',
       maxWidth: 640, margin: '0 auto', background: 'var(--bg-card)',
+      position: 'fixed', top: 'var(--header-height)', left: 0, right: 0,
     }}>
       {/* Header */}
       <div style={{

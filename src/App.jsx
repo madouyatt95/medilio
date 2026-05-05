@@ -181,6 +181,7 @@ function BottomNav() {
   const hiddenPaths = ['/', '/login', '/register'];
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('create-mission')) return null;
+  if (location.pathname.includes('/chat/')) return null;
   if (user?.role === 'admin') return null;
 
   const isActive = (path) => location.pathname.startsWith(path);

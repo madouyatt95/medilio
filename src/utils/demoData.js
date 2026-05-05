@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v4';
+const DEMO_SEEDED_KEY = 'medilio_demo_v5';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
@@ -39,7 +39,7 @@ export function seedDemoData() {
     firstName: 'Marie',
     lastName: 'Dupont',
     phone: '06 12 34 56 78',
-    avatar: 'https://i.pravatar.cc/150?u=marie.dupont',
+    avatar: 'https://i.pravatar.cc/150?u=marie_woman',
     createdAt: lastWeek.toISOString(),
     address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002', lat: 48.8695, lng: 2.3313 },
     professionalInfo: null,
