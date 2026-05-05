@@ -291,6 +291,7 @@ import DocumentsPage from './pages/patient/DocumentsPage';
 function AppContent() {
   const { user } = useAuth();
   const { refresh } = useNotifications();
+  const location = useLocation();
   
   // ── Synchronization across tabs (demo mode) ──
   useEffect(() => {
@@ -312,9 +313,11 @@ function AppContent() {
     }
   }, [user?.id]);
 
+  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin');
+
   return (
     <ErrorBoundary>
-      <Header />
+      {!isAdmin && <Header />}
       <ToastContainer />
       <Routes>
         <Route path="/" element={<LandingPage />} />

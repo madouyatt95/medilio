@@ -58,25 +58,13 @@ export default function ProDashboard() {
     <div className="page-container animate-fadeIn" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 40px)', background: '#FAFBFD' }}>
       
       {/* ── Welcome Header with Badges ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Bonjour, {user?.firstName || 'Lucas'} 👋
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-xs)', marginTop: 4 }}>
-            Prêt pour votre tournée aujourd'hui ?
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div onClick={() => navigate('/pro/messages')} style={{ position: 'relative', cursor: 'pointer', background: 'white', padding: '10px', borderRadius: '50%', boxShadow: 'var(--shadow-sm)', color: 'var(--text-secondary)' }}>
-            <Bell size={20} />
-            {unreadNotifs > 0 && (
-              <span style={{ position: 'absolute', top: '2px', right: '2px', background: 'var(--color-danger)', color: 'white', fontSize: '9px', fontWeight: 800, width: '15px', height: '15px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {unreadNotifs}
-              </span>
-            )}
-          </div>
-        </div>
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h1 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Bonjour, {user?.firstName || 'Lucas'} 👋
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-xs)', marginTop: 4 }}>
+          Prêt pour votre tournée aujourd'hui ?
+        </p>
       </div>
 
       {/* ── Grid of 4 Key Stats ── */}
