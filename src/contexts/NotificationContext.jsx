@@ -10,31 +10,54 @@ export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
 
-  useEffect(() => {
-    if (user) {
-      setNotifications(notificationService.getByUser(user.id));
-    } else {
-      setNotifications([]);
-    }
-  }, [user]);
+  // Toasts management (Move before refresh)
+  const showToast = useCallback((message, type = 'info', duration = 4000) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const refresh = useCallback(() => {
-    if (user) {
-      const newNotifs = notificationService.getByUser(user.id);
-      
-      // If new unread notification detected (and it's not our first load)
-      if (notifications.length > 0 && newNotifs.length > notifications.length) {
+    if (!user) return;
+    
+    const newNotifs = notificationService.getByUser(user.id);
+    
+    setNotifications(prev => {
+      // Avoid infinite loop: if content is same, don't update state
+      if (prev.length === newNotifs.length && (prev.length === 0 || prev[0].id === newNotifs[0].id)) {
+        return prev;
+      }
+
+      // Detect new unread notification for toast
+      if (prev.length > 0 && newNotifs.length > prev.length) {
         const latest = newNotifs[0];
         if (!latest.read) {
-          showToast(`${latest.title}: ${latest.message}`, 'info');
+          // Trigger toast safely
+          setTimeout(() => {
+            showToast(`${latest.title}: ${latest.message}`, 'info');
+          }, 0);
         }
       }
       
-      setNotifications(newNotifs);
-    }
-  }, [user, notifications, showToast]);
+      return newNotifs;
+    });
+  }, [user, showToast]);
 
-  // Poll for updates in demo mode (since other tabs/simulated users might write to localStorage)
+  useEffect(() => {
+    if (user) {
+      refresh();
+    } else {
+      setNotifications([]);
+    }
+  }, [user, refresh]);
+
+  // Poll for updates in demo mode
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(refresh, 5000);
@@ -57,18 +80,6 @@ export function NotificationProvider({ children }) {
     notificationService.markAllAsRead(user.id);
     refresh();
   }, [user, refresh]);
-
-  const showToast = useCallback((message, type = 'info', duration = 4000) => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, duration);
-  }, []);
-
-  const dismissToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

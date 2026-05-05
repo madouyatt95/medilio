@@ -38,46 +38,30 @@ class ErrorBoundary extends React.Component {
             <br />
             {this.state.errorInfo?.componentStack}
           </details>
+          <button onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px' }}>
+            Réessayer
+          </button>
         </div>
       );
     }
-    return this.props.children; 
+    return this.props.children;
   }
 }
 
-
-// Pages
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import PatientDashboard from './pages/patient/PatientDashboard';
-import CreateMission from './pages/patient/CreateMission';
-import PatientMissionDetail from './pages/patient/MissionDetail';
-import PatientProfile from './pages/patient/PatientProfile';
-import ProDashboard from './pages/professional/ProDashboard';
-import MissionRadar from './pages/professional/MissionRadar';
-import ProMissionDetail from './pages/professional/ProMissionDetail';
-import Earnings from './pages/professional/Earnings';
-import ProProfile from './pages/professional/ProProfile';
-import ProTour from './pages/professional/ProTour';
-import PatientRecord from './pages/professional/PatientRecord';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import ChatPage from './pages/ChatPage';
-import CalendarPage from './pages/CalendarPage';
-
-// (Demo data disabled for Supabase usage)
-
-// ── Protected Route ──
+// ── Protected Route Helper ──
 function ProtectedRoute({ children, allowedRoles }) {
-  const { user, isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'professional') return <Navigate to="/pro/dashboard" replace />;
-    return <Navigate to="/patient/dashboard" replace />;
-  }
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
+
   return children;
 }
+
+// ── Shared Header & Layout ──
+// (Moved into AppContent for access to context)
 
 // ── Header Component ──
 function Header() {
@@ -106,22 +90,16 @@ function Header() {
             <Bell size={20} />
             {unreadCount > 0 && <span className="header-notif-badge">{unreadCount}</span>}
           </button>
-          {/* Avatar with photo support */}
           <div
+            className="avatar avatar-sm"
             onClick={() => profilePath && navigate(profilePath)}
-            style={{
-              width: '36px', height: '36px', borderRadius: '50%',
-              overflow: 'hidden', cursor: 'pointer',
-              border: '2px solid rgba(255,255,255,0.4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: user?.avatar
-                ? `url(${user.avatar}) center/cover`
-                : 'rgba(255,255,255,0.2)',
-              color: 'white', fontWeight: 700, fontSize: '13px',
-              transition: 'transform 0.2s ease, border-color 0.2s ease',
+            style={{ 
+              cursor: 'pointer', 
+              border: '2px solid rgba(255,255,255,0.2)',
+              backgroundImage: user?.avatar ? `url(${user.avatar})` : 'none',
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              color: user?.avatar ? 'transparent' : 'white'
             }}
-            onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.borderColor = 'white'; }}
-            onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}
           >
             {!user?.avatar && <span>{user?.firstName?.[0]}{user?.lastName?.[0]}</span>}
           </div>
@@ -261,69 +239,28 @@ function ToastContainer() {
   );
 }
 
-// ── Patient Missions List Page ──
-function PatientMissions() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [missions, setMissions] = useState([]);
-  const [tab, setTab] = useState('all');
+// ── Import Pages ──
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import PatientDashboard from './pages/patient/PatientDashboard';
+import CreateMission from './pages/patient/CreateMission';
+import PatientMissionDetail from './pages/patient/MissionDetail';
+import ProDashboard from './pages/professional/ProDashboard';
+import MissionRadar from './pages/professional/MissionRadar';
+import ProTour from './pages/professional/ProTour';
+import ProMissionDetail from './pages/professional/ProMissionDetail';
+import PatientRecord from './pages/professional/PatientRecord';
+import Earnings from './pages/professional/Earnings';
+import ProProfile from './pages/professional/ProProfile';
+import PatientProfile from './pages/patient/PatientProfile';
+import CalendarPage from './pages/CalendarPage';
+import ChatPage from './pages/ChatPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
-  useEffect(() => {
-    async function load() {
-      if (user) setMissions(await missionService.getByPatient(user.id));
-    }
-    load();
-  }, [user]);
-
-  const filtered = tab === 'all' ? missions
-    : tab === 'active' ? missions.filter(m => ['open', 'assigned', 'in_progress'].includes(m.status))
-    : missions.filter(m => m.status === 'completed');
-
-  const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
-
-  return (
-    <div className="page-container">
-      <h1 className="page-title">Mes missions</h1>
-      <div className="tabs">
-        <button className={`tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>Toutes</button>
-        <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>En cours</button>
-        <button className={`tab ${tab === 'completed' ? 'active' : ''}`} onClick={() => setTab('completed')}>Terminées</button>
-      </div>
-      <div className="mission-list">
-        {filtered.map(m => (
-          <div key={m.id} className="mission-card" onClick={() => navigate(`/patient/mission/${m.id}`)}>
-            <div className="mission-card-header">
-              <div className="mission-card-type">
-                <div className="mission-card-type-icon"><ClipboardList size={18} /></div>
-                {getCareLabel(m.careType)}
-              </div>
-              <span className={`badge badge-${m.status}`}>
-                <span className="badge-dot" /> {MISSION_STATUS_LABELS[m.status]}
-              </span>
-            </div>
-            <div className="mission-card-meta">
-              <div className="mission-card-meta-row">
-                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
-                  📅 {formatDate(m.scheduledDate)} · 📍 {m.address?.city}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-title">Aucune mission</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Main App ──
+// ── Main App Content ──
 function AppContent() {
   const { user } = useAuth();
-
   const { refresh } = useNotifications();
   
   // ── Synchronization across tabs (demo mode) ──
@@ -347,11 +284,10 @@ function AppContent() {
   }, [user?.id]);
 
   return (
-    <>
+    <ErrorBoundary>
       <Header />
       <ToastContainer />
-      <ErrorBoundary>
-        <Routes>
+      <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -382,10 +318,68 @@ function AppContent() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ErrorBoundary>
+      </Routes>
       <BottomNav />
-    </>
+    </ErrorBoundary>
+  );
+}
+
+// ── Patient Missions List Component (Moved from App.jsx to avoid clutter) ──
+function PatientMissions() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [missions, setMissions] = useState([]);
+  const [tab, setTab] = useState('all');
+
+  useEffect(() => {
+    async function load() {
+      if (user) setMissions(await missionService.getByPatient(user.id));
+    }
+    load();
+  }, [user]);
+
+  const filtered = tab === 'all' ? missions
+    : tab === 'active' ? missions.filter(m => ['open', 'assigned', 'in_progress'].includes(m.status))
+    : missions.filter(m => m.status === 'completed');
+
+  const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
+
+  return (
+    <div className="page-container">
+      <h1 className="page-title">Mes demandes de soins</h1>
+      <div className="tabs">
+        <button className={`tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>Toutes</button>
+        <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>En cours</button>
+        <button className={`tab ${tab === 'completed' ? 'active' : ''}`} onClick={() => setTab('completed')}>Terminées</button>
+      </div>
+      <div className="mission-list">
+        {filtered.map(m => (
+          <div key={m.id} className="mission-card" onClick={() => navigate(`/patient/mission/${m.id}`)}>
+            <div className="mission-card-header">
+              <div className="mission-card-type">
+                <div className="mission-card-type-icon"><ClipboardList size={18} /></div>
+                {getCareLabel(m.careType)}
+              </div>
+              <span className={`badge badge-${m.status}`}>
+                <span className="badge-dot" /> {MISSION_STATUS_LABELS[m.status]}
+              </span>
+            </div>
+            <div className="mission-card-meta">
+              <div className="mission-card-meta-row">
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>
+                  📅 {formatDate(m.scheduledDate)} · 📍 {m.address?.city}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-title">Aucune demande</div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
