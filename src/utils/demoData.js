@@ -6,6 +6,18 @@ const DEMO_SEEDED_KEY = 'medilio_demo_v6';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
+  
+  // Clean old versions
+  localStorage.removeItem('medilio_demo_v5');
+  localStorage.removeItem('medilio_demo_v4');
+  localStorage.removeItem('medilio_demo_v3');
+  localStorage.removeItem('medilio_current_user');
+  localStorage.removeItem('medilio_users');
+  localStorage.removeItem('medilio_missions');
+  localStorage.removeItem('medilio_notifications');
+  localStorage.removeItem('medilio_chats');
+  localStorage.removeItem('medilio_reminders');
+  localStorage.removeItem('medilio_ratings');
 
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
