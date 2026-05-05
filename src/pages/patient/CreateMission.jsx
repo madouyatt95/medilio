@@ -24,10 +24,15 @@ export default function CreateMission() {
   const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useNotifications();
-  const [step, setStep] = useState(location.state?.careType ? 1 : 0);
+
+  // Parse query parameter or router state
+  const searchParams = new URLSearchParams(location.search);
+  const queryCareType = searchParams.get('careType') || location.state?.careType || '';
+
+  const [step, setStep] = useState(0); // ALWAYS start on Step 0 (the list)
   const [locating, setLocating] = useState(false);
   const [form, setForm] = useState({
-    careType: location.state?.careType || '',
+    careType: queryCareType,
     address: {
       street: user?.address?.street || '',
       city: user?.address?.city || '',
@@ -68,13 +73,12 @@ export default function CreateMission() {
   }, [step, form.isForOther, form.patientInfo.name, user]);
 
   useEffect(() => {
-    if (location.state?.careType) {
-      setForm(prev => ({ ...prev, careType: location.state.careType }));
-      setStep(1);
-      // Clean up state so we don't force step 1 if the user navigates back
+    if (queryCareType) {
+      setForm(prev => ({ ...prev, careType: queryCareType }));
+      // Clear URL search params/state so that backing out is clean
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state?.careType, navigate, location.pathname]);
+  }, [queryCareType, navigate, location.pathname]);
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) {

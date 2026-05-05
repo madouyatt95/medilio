@@ -79,27 +79,13 @@ export default function PatientDashboard() {
     <div className="page-container animate-fadeIn" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 40px)', background: '#FAFBFD' }}>
       
       {/* ── Welcome Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Bonjour, {user?.firstName || 'Sophie'} 👋
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-xs)', marginTop: 4 }}>
-            Comment allez-vous aujourd'hui ?
-          </p>
-        </div>
-        <div>
-          <div className="avatar" style={{ 
-            backgroundImage: user?.avatar ? `url(${user.avatar})` : 'none',
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            color: user?.avatar ? 'transparent' : 'var(--color-primary)',
-            background: 'white',
-            border: '2px solid white',
-            boxShadow: 'var(--shadow-md)'
-          }}>
-            {!user?.avatar && (user?.firstName?.[0] || 'S')}
-          </div>
-        </div>
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Bonjour, {user?.firstName || 'Sophie'} 👋
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-xs)', marginTop: 4 }}>
+          Comment allez-vous aujourd'hui ?
+        </p>
       </div>
 
       {/* ── Upcoming Appointment Hero Encart (Vibrant Blue Card) ── */}
@@ -254,7 +240,7 @@ export default function PatientDashboard() {
 
           {/* Card 3: Mes documents */}
           <div 
-            onClick={() => navigate('/patient/profile')}
+            onClick={() => navigate('/patient/documents')}
             className="glass-card"
             style={{
               padding: '16px 8px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer',

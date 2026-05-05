@@ -76,16 +76,6 @@ export default function ProDashboard() {
               </span>
             )}
           </div>
-          <div className="avatar" style={{ 
-            backgroundImage: user?.avatar ? `url(${user.avatar})` : 'none',
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            color: user?.avatar ? 'transparent' : 'var(--color-primary)',
-            background: 'white',
-            border: '2px solid white',
-            boxShadow: 'var(--shadow-md)'
-          }}>
-            {!user?.avatar && (user?.firstName?.[0] || 'L')}
-          </div>
         </div>
       </div>
 
