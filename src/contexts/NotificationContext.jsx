@@ -24,6 +24,13 @@ export function NotificationProvider({ children }) {
     }
   }, [user]);
 
+  // Poll for updates in demo mode (since other tabs/simulated users might write to localStorage)
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [user, refresh]);
+
   const addNotification = useCallback(({ type, title, message, link }) => {
     if (!user) return;
     notificationService.create({ userId: user.id, type, title, message, link });

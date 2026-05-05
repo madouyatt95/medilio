@@ -1,6 +1,6 @@
-// ── Chat Service (Hybrid Supabase/Local Demo) ──
 import supabase from '../lib/supabase';
 import storageService from './storageService';
+import notificationService from './notificationService';
 
 export const chatService = {
   // Get or create a conversation for a mission
@@ -85,6 +85,22 @@ export const chatService = {
         };
         localChats[chatIdx].messages.push(newMessage);
         storageService.setChats(localChats);
+
+        // Notify recipient locally
+        const mission = storageService.getMissions().find(m => m.id === missionId);
+        if (mission) {
+          const recipientId = mission.patientId === senderId ? mission.assignedProId : mission.patientId;
+          if (recipientId) {
+            notificationService.create({
+              userId: recipientId,
+              type: 'message',
+              title: `Message de ${senderName}`,
+              message: content.length > 40 ? content.substring(0, 40) + '...' : content,
+              link: `/chat/${missionId}`
+            });
+          }
+        }
+        
         return newMessage;
       }
     }
@@ -102,6 +118,23 @@ export const chatService = {
       .single();
 
     if (error) throw new Error(error.message);
+
+    // Notify recipient via Supabase (if possible) or just standard notif
+    const mission = await supabase.from('missions').select('*').eq('id', missionId).single();
+    if (mission.data) {
+      const recipientId = mission.data.patient_id === senderId ? mission.data.assigned_pro_id : mission.data.patient_id;
+      if (recipientId) {
+        // In a real app, this would be handled by a Supabase trigger or Edge Function
+        // For now, we simulate it
+        notificationService.create({
+          userId: recipientId,
+          type: 'message',
+          title: `Message de ${senderName}`,
+          message: content.length > 40 ? content.substring(0, 40) + '...' : content,
+          link: `/chat/${missionId}`
+        });
+      }
+    }
 
     return {
       id: data.id,
