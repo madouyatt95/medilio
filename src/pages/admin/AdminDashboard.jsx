@@ -14,6 +14,7 @@ import {
   ShieldAlert, ArrowUpDown, ArrowUpRight, TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import logo from '../../assets/logo-medilio.png';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -176,10 +177,7 @@ export default function AdminDashboard() {
             marginBottom: '32px',
             paddingLeft: '8px'
           }}>
-            <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="40" height="40" rx="10" fill="#2563EB" />
-              <path d="M20 10V30M10 20H30" stroke="white" strokeWidth="5" strokeLinecap="round" />
-            </svg>
+            <img src={logo} alt="Medilio" style={{ height: '32px', width: 'auto' }} />
             <span style={{ fontWeight: 800, fontSize: '20px', color: '#1E293B', letterSpacing: '-0.03em' }}>Medilio</span>
           </div>
 
