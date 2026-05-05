@@ -11,7 +11,7 @@ import {
   Home, Users, ClipboardList, Shield, Heart, CreditCard,
   Star, MessageSquare, Settings, Headphones, Download,
   ChevronDown, Bell, CheckCircle, Ban, Trash2, X, Check as CheckIcon,
-  ShieldAlert, ArrowUpDown, ArrowUpRight
+  ShieldAlert, ArrowUpDown, ArrowUpRight, TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
