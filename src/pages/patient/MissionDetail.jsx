@@ -102,14 +102,14 @@ export default function PatientMissionDetail() {
   const handleComplete = async () => {
     const updated = await missionService.updateStatus(mission.id, 'completed');
     setMission(updated);
-    showToast('Mission marquée comme terminée !', 'success');
+    showToast('Demande marquée comme terminée !', 'success');
     setTimeout(() => setShowRating(true), 500);
   };
 
   const handleCancel = async () => {
     const updated = await missionService.updateStatus(mission.id, 'cancelled');
     setMission(updated);
-    showToast('Mission annulée', 'warning');
+    showToast('Demande annulée', 'warning');
   };
 
   const handleRate = async ({ score, comment }) => {
@@ -220,7 +220,13 @@ export default function PatientMissionDetail() {
           <div className="section-title">Professionnel assigné</div>
           <div className="card" style={{ padding: 'var(--space-4)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-              <div className="avatar avatar-lg">{assignedPro.firstName?.[0]}{assignedPro.lastName?.[0]}</div>
+              <div className="avatar avatar-lg" style={{
+                backgroundImage: assignedPro.avatar ? `url(${assignedPro.avatar})` : 'none',
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                color: assignedPro.avatar ? 'transparent' : 'var(--text-primary)'
+              }}>
+                {assignedPro.firstName?.[0]}{assignedPro.lastName?.[0]}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>{assignedPro.firstName} {assignedPro.lastName}</div>
                 <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)' }}>
@@ -271,7 +277,13 @@ export default function PatientMissionDetail() {
             const proR = proRatings[app.proId] || { average: 0, count: 0 };
             return (
               <div key={app.proId} className="applicant-card">
-                <div className="avatar">{pro.firstName?.[0]}{pro.lastName?.[0]}</div>
+                <div className="avatar" style={{
+                  backgroundImage: pro.avatar ? `url(${pro.avatar})` : 'none',
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  color: pro.avatar ? 'transparent' : 'var(--text-primary)'
+                }}>
+                  {pro.firstName?.[0]}{pro.lastName?.[0]}
+                </div>
                 <div className="applicant-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <span className="applicant-name">{pro.firstName} {pro.lastName}</span>

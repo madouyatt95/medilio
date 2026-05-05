@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v3';
+const DEMO_SEEDED_KEY = 'medilio_demo_v4';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
@@ -24,7 +24,7 @@ export function seedDemoData() {
     firstName: 'Admin',
     lastName: 'Medilio',
     phone: '01 00 00 00 00',
-    avatar: null,
+    avatar: 'https://ui-avatars.com/api/?name=Admin+Medilio&background=0D8ABC&color=fff',
     createdAt: lastWeek.toISOString(),
     address: null,
     professionalInfo: null,
@@ -39,7 +39,7 @@ export function seedDemoData() {
     firstName: 'Marie',
     lastName: 'Dupont',
     phone: '06 12 34 56 78',
-    avatar: null,
+    avatar: 'https://i.pravatar.cc/150?u=marie.dupont',
     createdAt: lastWeek.toISOString(),
     address: { street: '15 Rue de la Paix', city: 'Paris', postalCode: '75002', lat: 48.8695, lng: 2.3313 },
     professionalInfo: null,
@@ -53,7 +53,7 @@ export function seedDemoData() {
     firstName: 'Jean',
     lastName: 'Martin',
     phone: '06 98 76 54 32',
-    avatar: null,
+    avatar: 'https://i.pravatar.cc/150?u=jean.martin',
     createdAt: lastWeek.toISOString(),
     address: { street: '8 Avenue Victor Hugo', city: 'Lyon', postalCode: '69002', lat: 45.7640, lng: 4.8357 },
     professionalInfo: null,
@@ -68,7 +68,7 @@ export function seedDemoData() {
     firstName: 'Claire',
     lastName: 'Moreau',
     phone: '06 55 44 33 22',
-    avatar: null,
+    avatar: 'https://i.pravatar.cc/150?u=claire.moreau',
     createdAt: lastWeek.toISOString(),
     address: { street: '5 Rue République', city: 'Paris', postalCode: '75011', lat: 48.8607, lng: 2.3630 },
     professionalInfo: {
@@ -88,7 +88,7 @@ export function seedDemoData() {
     firstName: 'Lucas',
     lastName: 'Dubois',
     phone: '06 33 22 11 00',
-    avatar: null,
+    avatar: 'https://i.pravatar.cc/150?u=lucas.dubois',
     createdAt: lastWeek.toISOString(),
     address: { street: '7 Rue Nationale', city: 'Paris', postalCode: '75013', lat: 48.8330, lng: 2.3590 },
     professionalInfo: {

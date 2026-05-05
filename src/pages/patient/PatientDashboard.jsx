@@ -60,7 +60,12 @@ export default function PatientDashboard() {
       {/* Greeting (Premium Header style) */}
       <div className="dashboard-greeting animate-fadeIn" style={{ marginBottom: 'var(--space-8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
-          <div className="avatar-lg" style={{ border: '2px solid white', boxShadow: 'var(--shadow-lg)' }}>
+          <div className="avatar-lg" style={{ 
+            border: '2px solid white', boxShadow: 'var(--shadow-lg)',
+            backgroundImage: user?.avatar ? `url(${user.avatar})` : 'none',
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            color: user?.avatar ? 'transparent' : 'var(--text-primary)'
+          }}>
             {user?.firstName?.[0]}{user?.lastName?.[0]}
           </div>
           <div>
@@ -120,8 +125,8 @@ export default function PatientDashboard() {
       {/* Categories of Care — pastel colored cards with emoji icons like mockup */}
       <div className="section animate-fadeInUp" style={{ animationDelay: '200ms' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
-          <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800 }}>Nos expertises</h2>
-          <button className="btn btn-ghost btn-sm" style={{ padding: 0 }}>Tout voir</button>
+          <h2 style={{ fontSize: 'var(--font-xl)', fontWeight: 800 }}>Soins disponibles</h2>
+          <button className="btn btn-ghost btn-sm" style={{ padding: 0 }} onClick={() => navigate('/patient/create-mission')}>Tout voir</button>
         </div>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-4)'
@@ -203,7 +208,10 @@ export default function PatientDashboard() {
               >
                 <div className="avatar-xl" style={{ 
                   marginBottom: 'var(--space-3)', border: '3px solid white', 
-                  boxShadow: 'var(--shadow-md)' 
+                  boxShadow: 'var(--shadow-md)',
+                  backgroundImage: pro.avatar ? `url(${pro.avatar})` : 'none',
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  color: pro.avatar ? 'transparent' : 'var(--text-primary)'
                 }}>
                   {pro.firstName?.[0]}{pro.lastName?.[0]}
                 </div>
@@ -226,7 +234,7 @@ export default function PatientDashboard() {
       {/* Upcoming Missions (Standard Card style) */}
       <div className="section animate-fadeInUp" style={{ animationDelay: '400ms' }}>
         <div className="section-title">
-          <span>Missions à venir</span>
+          <span>Demandes de soins à venir</span>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/patient/missions')}>
             Tout voir <ChevronRight size={16} />
           </button>
@@ -235,7 +243,7 @@ export default function PatientDashboard() {
         {[...openMissions, ...assignedMissions].length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon"><ClipboardList size={28} /></div>
-            <div className="empty-state-title">Aucune mission en cours</div>
+            <div className="empty-state-title">Aucune demande en cours</div>
             <div className="empty-state-text">Créez votre première demande de soins pour commencer.</div>
             <button className="btn btn-primary" onClick={() => navigate('/patient/create-mission')}>
               <Plus size={18} /> Créer une demande
@@ -287,7 +295,7 @@ export default function PatientDashboard() {
       {completedMissions.length > 0 && (
         <div className="section">
           <div className="section-title">
-            <span>Missions terminées</span>
+            <span>Demandes terminées</span>
           </div>
           <div className="mission-list">
             {completedMissions.slice(0, 3).map(mission => (

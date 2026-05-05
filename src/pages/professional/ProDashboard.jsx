@@ -38,7 +38,11 @@ export default function ProDashboard() {
     <div className="page-container">
       <div className="dashboard-greeting animate-fadeIn" style={{ marginBottom: 'var(--space-8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
-          <div className="avatar-lg" style={{ border: '2px solid white', boxShadow: 'var(--shadow-lg)', background: 'var(--color-primary)', color: 'white' }}>
+          <div className="avatar-lg" style={{ 
+            border: '2px solid white', boxShadow: 'var(--shadow-lg)', 
+            background: user?.avatar ? `url(${user.avatar}) center/cover` : 'var(--color-primary)', 
+            color: user?.avatar ? 'transparent' : 'white' 
+          }}>
             {user?.firstName?.[0]}{user?.lastName?.[0]}
           </div>
           <div>
