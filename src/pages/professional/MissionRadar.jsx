@@ -163,8 +163,9 @@ export default function MissionRadar() {
     const origin = selectedCityCoords || userCoords;
     if (!origin) return null;
     return {
-      center: [origin.lat, origin.lng],
-      radius: radiusFilter * 1000
+      lat: origin.lat,
+      lng: origin.lng,
+      radius: radiusFilter // Send in km, InteractiveMap converts to meters
     };
   };
 
