@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v5';
+const DEMO_SEEDED_KEY = 'medilio_demo_v6';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
@@ -17,7 +17,7 @@ export function seedDemoData() {
 
   // ── Admin User ──
   const admin = {
-    id: uuidv4(),
+    id: 'admin-0000-0000-0000-000000000000',
     email: 'admin@medilio.fr',
     password: btoa('admin123'),
     role: 'admin',
@@ -32,7 +32,7 @@ export function seedDemoData() {
 
   // ── Patients ──
   const patient1 = {
-    id: uuidv4(),
+    id: 'patient-0000-0000-0000-000000000001',
     email: 'famille.dupont@email.fr',
     password: btoa('patient123'),
     role: 'patient',
@@ -46,7 +46,7 @@ export function seedDemoData() {
   };
 
   const patient2 = {
-    id: uuidv4(),
+    id: 'patient-0000-0000-0000-000000000002',
     email: 'jean.martin@email.fr',
     password: btoa('patient123'),
     role: 'patient',
@@ -61,7 +61,7 @@ export function seedDemoData() {
 
   // ── Professionals ──
   const pro1 = {
-    id: uuidv4(),
+    id: 'pro-0000-0000-0000-000000000001',
     email: 'claire.infirmiere@email.fr',
     password: btoa('pro123'),
     role: 'professional',
@@ -81,7 +81,7 @@ export function seedDemoData() {
   };
 
   const proLucas = {
-    id: uuidv4(),
+    id: 'pro-0000-0000-0000-000000000002',
     email: 'lucas.infirmier@email.fr',
     password: btoa('pro123'),
     role: 'professional',

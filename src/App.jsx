@@ -319,6 +319,19 @@ function PatientMissions() {
 function AppContent() {
   const { user } = useAuth();
 
+  const { refresh } = useNotifications();
+  
+  // ── Synchronization across tabs (demo mode) ──
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'medilio_notifications' || e.key === 'medilio_chats') {
+        refresh();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [refresh]);
+
   // ── Rappels J-1 automatiques ──
   useEffect(() => {
     if (user?.id) {

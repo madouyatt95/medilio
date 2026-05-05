@@ -20,9 +20,19 @@ export function NotificationProvider({ children }) {
 
   const refresh = useCallback(() => {
     if (user) {
-      setNotifications(notificationService.getByUser(user.id));
+      const newNotifs = notificationService.getByUser(user.id);
+      
+      // If new unread notification detected (and it's not our first load)
+      if (notifications.length > 0 && newNotifs.length > notifications.length) {
+        const latest = newNotifs[0];
+        if (!latest.read) {
+          showToast(`${latest.title}: ${latest.message}`, 'info');
+        }
+      }
+      
+      setNotifications(newNotifs);
     }
-  }, [user]);
+  }, [user, notifications, showToast]);
 
   // Poll for updates in demo mode (since other tabs/simulated users might write to localStorage)
   useEffect(() => {
