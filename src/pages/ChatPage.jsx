@@ -58,11 +58,23 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    await chatService.sendMessage(missionId, user.id, `${user.firstName} ${user.lastName}`, input.trim());
-    const updatedMessages = await chatService.getMessages(missionId);
-    setMessages(updatedMessages);
+    const currentInput = input.trim();
     setInput('');
-    inputRef.current?.focus();
+    try {
+      const newMsg = await chatService.sendMessage(missionId, user.id, `${user.firstName} ${user.lastName}`, currentInput);
+      // We don't necessarily need to setMessages manually if subscription works, 
+      // but for local demo it helps ensure immediate feedback.
+      setMessages(prev => {
+        if (prev.find(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err) {
+      console.error(err);
+      setInput(currentInput);
+    }
   };
 
   const handleKeyDown = (e) => {

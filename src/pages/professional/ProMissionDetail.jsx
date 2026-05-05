@@ -135,10 +135,16 @@ export default function ProMissionDetail() {
               </div>
             </div>
           </div>
-          <button className="btn btn-secondary btn-block" onClick={() => navigate(`/pro/patient/${patient.id}`)}>
-            <Activity size={16} style={{ marginRight: 8 }} />
-            Ouvrir le dossier patient (Carnet Partagé)
-          </button>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate(`/pro/patient/${patient.id}`)}>
+              <Activity size={16} style={{ marginRight: 8 }} />
+              Dossier
+            </button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => navigate(`/chat/${mission.id}`)}>
+              <MessageCircle size={16} style={{ marginRight: 8 }} />
+              Message
+            </button>
+          </div>
         </div>
       )}
 
