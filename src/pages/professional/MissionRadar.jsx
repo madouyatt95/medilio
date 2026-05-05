@@ -287,9 +287,11 @@ export default function MissionRadar() {
       `,
       backgroundAttachment: 'fixed',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      overflowX: 'hidden',
+      width: '100%'
     }}>
-      <div className="page-container" style={{ position: 'relative', zIndex: 10 }}>
+      <div className="page-container" style={{ position: 'relative', zIndex: 10, width: '100%', overflowX: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: 'var(--space-4) 0', marginBottom: 'var(--space-4)' }}>
           <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
@@ -301,12 +303,12 @@ export default function MissionRadar() {
 
         {/* Filters */}
         <div className="glass-panel" style={{ marginBottom: 'var(--space-5)', padding: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)', color: 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)', color: 'white', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Filter size={16} />
               <span style={{ fontWeight: 600, fontSize: 'var(--font-sm)' }}>Filtres de recherche</span>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               {/* View mode toggle */}
               <div style={{
                 display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden',
