@@ -25,18 +25,22 @@ export default function PatientDashboard() {
 
   useEffect(() => {
     async function loadData() {
-      if (user) {
-        setMissions(await missionService.getByPatient(user.id));
+      try {
+        if (user) {
+          setMissions(await missionService.getByPatient(user.id));
+        }
+        const users = await authService.getAllUsers();
+        const pros = users.filter(u => u.role === 'professional' && u.professionalInfo?.verified);
+        const proRatings = await ratingService.getAllProRatings();
+        const proData = pros.map(p => {
+          const ratings = proRatings[p.id] || [];
+          const avg = ratings.length ? ratings.reduce((s, r) => s + r.score, 0) / ratings.length : 0;
+          return { ...p, ratingAvg: Math.round(avg * 10) / 10, ratingCount: ratings.length };
+        }).sort((a,b) => b.ratingAvg - a.ratingAvg).slice(0, 5);
+        setFeaturedPros(proData);
+      } catch (err) {
+        console.error("Dashboard data load error:", err);
       }
-      const users = await authService.getAllUsers();
-      const pros = users.filter(u => u.role === 'professional' && u.professionalInfo?.verified);
-      const proRatings = await ratingService.getAllProRatings();
-      const proData = pros.map(p => {
-        const ratings = proRatings[p.id] || [];
-        const avg = ratings.length ? ratings.reduce((s, r) => s + r.score, 0) / ratings.length : 0;
-        return { ...p, ratingAvg: Math.round(avg * 10) / 10, ratingCount: ratings.length };
-      }).sort((a,b) => b.ratingAvg - a.ratingAvg).slice(0, 5);
-      setFeaturedPros(proData);
     }
     loadData();
   }, [user]);

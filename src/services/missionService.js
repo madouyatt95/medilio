@@ -212,31 +212,39 @@ export const missionService = {
   async getByPatient(patientId) {
     const locals = storageService.getMissions().filter(m => m.patientId === patientId);
 
-    const { data, error } = await supabase
-      .from('missions')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('missions')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
-    const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
-    
-    return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (error) throw error;
+      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
+      return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch (err) {
+      console.warn("Supabase fetch failed, returning locals only", err);
+      return locals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
   },
 
   async getByProfessional(proId) {
     const locals = storageService.getMissions().filter(m => m.assignedProId === proId);
 
-    const { data, error } = await supabase
-      .from('missions')
-      .select('*')
-      .eq('assigned_pro_id', proId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('missions')
+        .select('*')
+        .eq('assigned_pro_id', proId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
-    const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
-
-    return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (error) throw error;
+      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
+      return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch (err) {
+      console.warn("Supabase fetch failed, returning locals only", err);
+      return locals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
   },
 
   async getOpenMissions() {
