@@ -227,7 +227,7 @@ export default function PatientMissionDetail() {
               }}>
                 {assignedPro.firstName?.[0]}{assignedPro.lastName?.[0]}
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/pro/view/${assignedPro.id}`)}>
                 <div style={{ fontWeight: 700 }}>{assignedPro.firstName} {assignedPro.lastName}</div>
                 <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)' }}>
                   {assignedPro.professionalInfo?.specialties?.join(', ')}
@@ -276,7 +276,7 @@ export default function PatientMissionDetail() {
             if (!pro) return null;
             const proR = proRatings[app.proId] || { average: 0, count: 0 };
             return (
-              <div key={app.proId} className="applicant-card">
+              <div key={app.proId} className="applicant-card" onClick={() => navigate(`/pro/view/${app.proId}`)} style={{ cursor: 'pointer' }}>
                 <div className="avatar" style={{
                   backgroundImage: pro.avatar ? `url(${pro.avatar})` : 'none',
                   backgroundSize: 'cover', backgroundPosition: 'center',

@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: 'medilio_notifications',
   CURRENT_USER: 'medilio_current_user',
   CHATS: 'medilio_chats',
+  RATINGS: 'medilio_ratings',
 };
 
 export const storageService = {
@@ -71,6 +72,13 @@ export const storageService = {
   },
   setChats(chats) {
     this.set(STORAGE_KEYS.CHATS, chats);
+  },
+  // Ratings
+  getRatings() {
+    return this.get(STORAGE_KEYS.RATINGS) || [];
+  },
+  setRatings(ratings) {
+    this.set(STORAGE_KEYS.RATINGS, ratings);
   },
 };
 

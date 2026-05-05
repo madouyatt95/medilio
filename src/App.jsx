@@ -257,6 +257,7 @@ import PatientProfile from './pages/patient/PatientProfile';
 import CalendarPage from './pages/CalendarPage';
 import ChatPage from './pages/ChatPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import ProPublicProfile from './pages/professional/ProPublicProfile';
 
 // ── Main App Content ──
 function AppContent() {
@@ -312,6 +313,9 @@ function AppContent() {
 
         {/* Chat Route */}
         <Route path="/chat/:missionId" element={<ProtectedRoute allowedRoles={['patient', 'professional']}><ChatPage /></ProtectedRoute>} />
+
+        {/* Public Pro Profile */}
+        <Route path="/pro/view/:proId" element={<ProtectedRoute allowedRoles={['patient', 'professional']}><ProPublicProfile /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />

@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v6';
+const DEMO_SEEDED_KEY = 'medilio_demo_v7';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
@@ -291,6 +291,22 @@ export function seedDemoData() {
   storageService.setUsers(users);
   storageService.setMissions(allMissions);
   storageService.setNotifications(notifications);
+
+  // ── Sample Ratings ──
+  const sampleRatings = [
+    {
+      id: uuidv4(), missionId: 'hist-1', patientId: patient1.id, proId: proLucas.id,
+      score: 5, comment: "Excellent infirmier, très ponctuel et doux dans ses soins. Je recommande vivement !",
+      createdAt: lastWeek.toISOString(),
+    },
+    {
+      id: uuidv4(), missionId: 'hist-2', patientId: patient2.id, proId: proLucas.id,
+      score: 4, comment: "Très professionnel, Lucas connaît bien son métier. Un peu d'attente parfois mais la qualité est là.",
+      createdAt: yesterday.toISOString(),
+    }
+  ];
+  storageService.setRatings(sampleRatings);
+
   localStorage.setItem(DEMO_SEEDED_KEY, 'true');
 }
 

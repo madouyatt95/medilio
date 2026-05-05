@@ -4,11 +4,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SPECIALTIES, EXTENDED_SPECIALTIES, CITIES } from '../../utils/constants';
 import missionService from '../../services/missionService';
+import ratingService from '../../services/ratingService';
+import { RatingDisplay } from '../../components/SharedComponents';
 import {
   User, MapPin, Clock, Stethoscope, Save, LogOut,
-  CheckCircle, Shield, Edit3, Star, Award, Briefcase, Plus
+  CheckCircle, Shield, Edit3, Star, Award, Briefcase, Plus, X
 } from 'lucide-react';
 import AvatarUpload from '../../components/AvatarUpload';
+import { formatRelative } from '../../utils/dateUtils';
 
 export default function ProProfile() {
   const { user, updateProfile, logout } = useAuth();
@@ -39,6 +42,8 @@ export default function ProProfile() {
 
   const [completedCount, setCompletedCount] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [ratings, setRatings] = useState([]);
+  const [stats, setStats] = useState({ average: 0, count: 0 });
 
   useEffect(() => {
     async function loadStats() {
@@ -48,6 +53,11 @@ export default function ProProfile() {
           const completed = missions.filter(m => m.status === 'completed');
           setCompletedCount(completed.length);
           setTotalEarnings(completed.reduce((sum, m) => sum + (Number(m.estimatedCost) || 0), 0));
+
+          const proRatings = await ratingService.getByPro(user.id);
+          setRatings(proRatings);
+          const proStats = await ratingService.getProAverageRating(user.id);
+          setStats(proStats);
         } catch (e) {
           console.warn('Could not load stats', e);
         }
@@ -150,7 +160,7 @@ export default function ProProfile() {
       }}>
         {[
           { icon: <Briefcase size={20} />, value: completedCount, label: 'Missions', color: '#2563EB', bg: '#DBEAFE' },
-          { icon: <Star size={20} />, value: '4.9', label: 'Note', color: '#F59E0B', bg: '#FEF3C7' },
+          { icon: <Star size={20} />, value: stats.average || '—', label: 'Note', color: '#F59E0B', bg: '#FEF3C7' },
           { icon: <Award size={20} />, value: `${totalEarnings}€`, label: 'Revenus', color: '#10B981', bg: '#D1FAE5' },
         ].map((stat, i) => (
           <div key={i} style={{
@@ -213,44 +223,55 @@ export default function ProProfile() {
           })}
         </div>
         {editing && (
-          <div style={{ marginTop: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Ajouter une spécialité..." 
-              list="extended-specialties"
-              value={customSpecialty}
-              onChange={e => setCustomSpecialty(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
+          <div style={{ marginTop: 'var(--space-4)' }}>
+            <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+              Suggestions :
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', paddingBottom: 'var(--space-2)', scrollbarWidth: 'none' }}>
+              {EXTENDED_SPECIALTIES.filter(s => !(form?.professionalInfo?.specialties || []).includes(s)).map(s => (
+                <button key={s} 
+                  className="tag" 
+                  onClick={() => toggleSpecialty(s)}
+                  style={{ whiteSpace: 'nowrap', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                >
+                  + {s}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 'var(--space-3)', display: 'flex', gap: 'var(--space-2)' }}>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Autre spécialité..." 
+                value={customSpecialty}
+                onChange={e => setCustomSpecialty(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (customSpecialty.trim()) {
+                      toggleSpecialty(customSpecialty.trim());
+                      setCustomSpecialty('');
+                    }
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => {
                   if (customSpecialty.trim()) {
                     toggleSpecialty(customSpecialty.trim());
                     setCustomSpecialty('');
                   }
-                }
-              }}
-              style={{ flex: 1 }}
-            />
-            <datalist id="extended-specialties">
-              {EXTENDED_SPECIALTIES.filter(s => !(form?.professionalInfo?.specialties || []).includes(s)).map(s => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={() => {
-                if (customSpecialty.trim()) {
-                  toggleSpecialty(customSpecialty.trim());
-                  setCustomSpecialty('');
-                }
-              }}
-              style={{ padding: '0 16px' }}
-            >
-              <Plus size={16} /> Ajouter
-            </button>
+                }}
+                style={{ padding: '0 16px' }}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
         )}
+
       </div>
 
       {/* Bio */}
@@ -346,7 +367,32 @@ export default function ProProfile() {
         </div>
       </div>
 
+      {/* Ratings Section */}
+      <div className="profile-section">
+        <div className="profile-section-title"><Star size={18} /> Avis et notes ({stats.count})</div>
+        {ratings.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 'var(--space-6)' }}>
+            Aucun avis pour le moment
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {ratings.map(r => (
+              <div key={r.id} className="card" style={{ padding: 'var(--space-4)', background: 'var(--bg-input)', border: 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
+                  <RatingDisplay average={r.score} count={0} size={14} />
+                  <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>{formatRelative(r.createdAt)}</span>
+                </div>
+                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-primary)', margin: 0 }}>
+                  {r.comment || "Aucun commentaire laissé."}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-4)', borderTop: '1px solid var(--border-color)' }}>
+
         <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textAlign: 'center' }}>
           Outils Développeur
         </p>
