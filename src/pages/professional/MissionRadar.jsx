@@ -351,7 +351,7 @@ export default function MissionRadar() {
               </button>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', position: 'relative', zIndex: 2000 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-3)', position: 'relative', zIndex: 2000 }}>
             <div className="form-group" style={{ position: 'relative', zIndex: 2000 }}>
               <input type="text" className="form-input" placeholder="Saisir une ville..." value={cityFilter}
                 onChange={e => { setCityFilter(e.target.value); setShowCitySuggestions(true); }} 
@@ -468,13 +468,13 @@ export default function MissionRadar() {
                 }}
               >
                 <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 800, color: 'white' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 10px #67E8F9' }} />
                       {getCareLabel(mission.careType)}
                     </div>
                     {cityFilter && mission.address?.city && (
-                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white', fontWeight: 600 }}>
+                      <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '8px', color: 'white', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {mission.computedDistance !== undefined && mission.computedDistance !== null
                           ? `${mission.computedDistance.toFixed(1)} km`
                           : (getDistanceLabel(cityFilter, mission.address.city) || mission.address.city)}
