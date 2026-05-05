@@ -260,6 +260,24 @@ export const missionService = {
   },
 
   async applyToMission(missionId, proId, message = '') {
+    // 1. Try Local Demo
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = missions[localIdx];
+      if (mission.applicants?.some(a => a.proId === proId)) {
+        throw new Error('Vous avez déjà postulé à cette mission');
+      }
+      mission.applicants = [
+        ...(mission.applicants || []),
+        { proId, appliedAt: new Date().toISOString(), message }
+      ];
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const { error } = await supabase
       .from('mission_applicants')
       .insert({
@@ -276,6 +294,19 @@ export const missionService = {
   },
 
   async acceptApplicant(missionId, proId) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = missions[localIdx];
+      mission.assignedProId = proId;
+      mission.status = 'assigned';
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const { error } = await supabase
       .from('missions')
       .update({ assigned_pro_id: proId, status: 'assigned' })
@@ -286,6 +317,18 @@ export const missionService = {
   },
 
   async rejectApplicant(missionId, proId) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = missions[localIdx];
+      mission.applicants = (mission.applicants || []).filter(a => a.proId !== proId);
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const { error } = await supabase
       .from('mission_applicants')
       .delete()
@@ -297,6 +340,21 @@ export const missionService = {
   },
 
   async updateStatus(missionId, status) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = missions[localIdx];
+      mission.status = status;
+      if (status === 'completed') {
+        mission.updatedAt = new Date().toISOString();
+      }
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const updates = { status };
     if (status === 'completed') {
       updates.updated_at = new Date().toISOString();
@@ -312,6 +370,21 @@ export const missionService = {
   },
 
   async addCareNote(missionId, proId, content) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = missions[localIdx];
+      mission.careNotes = [
+        ...(mission.careNotes || []),
+        { id: Math.random().toString(36).substr(2, 9), proId, content, createdAt: new Date().toISOString() }
+      ];
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const { error } = await supabase
       .from('mission_care_notes')
       .insert({
@@ -325,6 +398,19 @@ export const missionService = {
   },
 
   async update(missionId, updates) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const localIdx = missions.findIndex(m => m.id === missionId);
+    if (localIdx !== -1) {
+      const mission = { ...missions[localIdx], ...updates };
+      if (updates.address) mission.address = { ...missions[localIdx].address, ...updates.address };
+      if (updates.patientInfo) mission.patientInfo = { ...missions[localIdx].patientInfo, ...updates.patientInfo };
+      missions[localIdx] = mission;
+      storageService.setMissions(missions);
+      return mission;
+    }
+
+    // 2. Supabase
     const dbUpdates = {};
     if (updates.careType) dbUpdates.care_type = updates.careType;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -347,6 +433,15 @@ export const missionService = {
   },
 
   async delete(missionId) {
+    // 1. Local
+    const missions = storageService.getMissions();
+    const filtered = missions.filter(m => m.id !== missionId);
+    if (filtered.length !== missions.length) {
+      storageService.setMissions(filtered);
+      return;
+    }
+
+    // 2. Supabase
     const { error } = await supabase
       .from('missions')
       .delete()
