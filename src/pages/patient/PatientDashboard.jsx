@@ -56,6 +56,15 @@ export default function PatientDashboard() {
       avatar: 'https://i.pravatar.cc/150?u=claire.moreau'
     },
     {
+      id: 'pro-0000-0000-0000-000000000003',
+      firstName: 'Sarah',
+      lastName: 'Bernard',
+      specialty: 'Auxiliaire de vie (AVS) certifiée',
+      rating: 4.9,
+      reviews: 31,
+      avatar: 'https://i.pravatar.cc/150?u=sarah.bernard'
+    },
+    {
       id: 'pro-0000-0000-0000-000000000002',
       firstName: 'Lucas',
       lastName: 'Dubois',
@@ -68,11 +77,11 @@ export default function PatientDashboard() {
 
   // Pre-list of available care types
   const availableCares = [
+    { id: 'daily_assistance', label: 'Aide au quotidien', emoji: '❤️', color: 'rgba(239, 68, 68, 0.06)', textColor: '#EF4444' },
     { id: 'injection', label: 'Injection / Vaccin', emoji: '💉', color: 'rgba(239, 68, 68, 0.06)', textColor: '#EF4444' },
     { id: 'bandage', label: 'Pansement', emoji: '🩹', color: 'rgba(245, 158, 11, 0.06)', textColor: '#F59E0B' },
     { id: 'blood_test', label: 'Prise de sang', emoji: '🧪', color: 'rgba(16, 185, 129, 0.06)', textColor: '#10B981' },
     { id: 'hygiene', label: 'Aide à la toilette', emoji: '🧼', color: 'rgba(59, 130, 246, 0.06)', textColor: '#3B82F6' },
-    { id: 'infusion', label: 'Perfusion', emoji: '💧', color: 'rgba(6, 182, 212, 0.06)', textColor: '#06B6D4' }
   ];
 
   return (
@@ -280,10 +289,10 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* ── Pre-liste de soins disponibles (Stylish badges, direct actions) ── */}
+      {/* ── Pre-liste de soins et d'aide disponibles (Stylish badges, direct actions) ── */}
       <div className="animate-fadeInUp" style={{ animationDelay: '200ms', marginBottom: 'var(--space-8)' }}>
         <h2 style={{ fontSize: 'var(--font-base)', fontWeight: 800, marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>
-          Demander un soin disponible
+          Demander un soin ou un service
         </h2>
         <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {availableCares.map((care) => (

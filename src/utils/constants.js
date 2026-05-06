@@ -52,15 +52,20 @@ export const CARE_TYPES = [
 export const SPECIALTIES = [
   'Infirmier(e) D.E.',
   'Infirmier(e) Libéral(e)',
-  'Infirmier(e) Puériculteur(trice)',
   'Aide-soignant(e)',
-  'Auxiliaire de vie',
+  'Auxiliaire de vie (AVS)',
+  'Aide ménager(e)',
+  'Accompagnateur(trice)',
   'Kinésithérapeute',
 ];
 
 // Liste étendue pour l'autocomplétion de la saisie manuelle
 export const EXTENDED_SPECIALTIES = [
   ...SPECIALTIES,
+  'Garde de nuit',
+  'Garde d\'enfants',
+  'Dame de compagnie',
+  'Infirmier(e) Puériculteur(trice)',
   'Infirmier(e) anesthésiste (IADE)',
   'Infirmier(e) de bloc opératoire (IBODE)',
   'Infirmier(e) en pratique avancée (IPA)',
