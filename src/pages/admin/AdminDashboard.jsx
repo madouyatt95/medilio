@@ -11,7 +11,7 @@ import {
   Home, Users, ClipboardList, Shield, Heart, CreditCard,
   Star, MessageSquare, Settings, Headphones, Download,
   ChevronDown, Bell, CheckCircle, Ban, Trash2, X, Check as CheckIcon,
-  ShieldAlert, ArrowUpDown, ArrowUpRight, TrendingUp
+  ShieldAlert, ArrowUpDown, ArrowUpRight, TrendingUp, Menu, LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo-medilio.png';
@@ -27,6 +27,18 @@ export default function AdminDashboard() {
   const [showVerifyModal, setShowVerifyModal] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [timeframe, setTimeframe] = useState('30_days');
+
+  // Responsiveness states
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load real data from DB
   useEffect(() => {
@@ -155,6 +167,21 @@ export default function AdminDashboard() {
       overflow: 'hidden'
     }}>
       
+      {/* ── Sidebar Backdrop Drawer for Mobile ── */}
+      {isMobile && sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 100000,
+            transition: 'opacity 0.2s ease'
+          }}
+        />
+      )}
+
       {/* ── Left Sidebar Navigation ── */}
       <aside style={{
         width: '260px',
@@ -166,19 +193,39 @@ export default function AdminDashboard() {
         padding: '24px 16px',
         height: '100%',
         boxSizing: 'border-box',
-        flexShrink: 0
+        flexShrink: 0,
+        // Mobile-responsive override positioning
+        position: isMobile ? 'fixed' : 'relative',
+        left: isMobile ? (sidebarOpen ? '0' : '-260px') : '0',
+        top: 0,
+        bottom: 0,
+        zIndex: isMobile ? 100001 : 1,
+        transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: isMobile && sidebarOpen ? '4px 0 24px rgba(15,23,42,0.15)' : 'none'
       }}>
         {/* Top Branding Header */}
         <div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            justifyContent: 'space-between',
             marginBottom: '32px',
             paddingLeft: '8px'
           }}>
-            <img src={logo} alt="Medilio" style={{ height: '32px', width: 'auto' }} />
-            <span style={{ fontWeight: 800, fontSize: '20px', color: '#1E293B', letterSpacing: '-0.03em' }}>Medilio</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img src={logo} alt="Medilio" style={{ height: '32px', width: 'auto' }} />
+              <span style={{ fontWeight: 800, fontSize: '20px', color: '#1E293B', letterSpacing: '-0.03em' }}>Medilio</span>
+            </div>
+            {isMobile && (
+              <button 
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'
+                }}
+              >
+                <X size={20} />
+              </button>
+            )}
           </div>
 
           {/* Navigation Menu */}
@@ -198,7 +245,10 @@ export default function AdminDashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setTab(item.id)}
+                  onClick={() => {
+                    setTab(item.id);
+                    if (isMobile) setSidebarOpen(false);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -271,17 +321,27 @@ export default function AdminDashboard() {
         <header style={{
           background: 'white',
           borderBottom: '1px solid #E2E8F0',
-          padding: '16px 32px',
+          padding: isMobile ? '12px 16px' : '16px 32px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexShrink: 0
         }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isMobile && (
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                style={{
+                  background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center'
+                }}
+              >
+                <Menu size={22} />
+              </button>
+            )}
             <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#64748B', margin: 0 }}>Medilio Admin Console</h2>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px' }}>
             {/* Notification Bell */}
             <div style={{ position: 'relative', cursor: 'pointer', color: '#64748B' }}>
               <Bell size={20} />
@@ -322,11 +382,13 @@ export default function AdminDashboard() {
               }}>
                 AM
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Admin Medilio</div>
-                <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 500 }}>Super administrateur</div>
-              </div>
-              <ChevronDown size={14} style={{ color: '#64748B', cursor: 'pointer' }} />
+              {!isMobile && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Admin Medilio</div>
+                  <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 500 }}>Super administrateur</div>
+                </div>
+              )}
+              {!isMobile && <ChevronDown size={14} style={{ color: '#64748B', cursor: 'pointer' }} />}
             </div>
 
             {/* Logout shortcut */}
@@ -334,25 +396,31 @@ export default function AdminDashboard() {
               onClick={() => { authService.logout(); navigate('/login'); }}
               style={{
                 background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#EF4444',
-                fontSize: '11px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer'
+                fontSize: '11px', fontWeight: 700, padding: isMobile ? '6px 8px' : '6px 12px', borderRadius: '8px', cursor: 'pointer'
               }}
             >
-              Déconnexion
+              {!isMobile ? 'Déconnexion' : <LogOut size={14} />}
             </button>
           </div>
         </header>
 
         {/* Dashboard Main Scrollable Body */}
-        <div style={{ padding: '32px', boxSizing: 'border-box' }}>
+        <div style={{ padding: isMobile ? '16px' : '32px', boxSizing: 'border-box' }}>
           
           {/* ── 1. VUE D'ENSEMBLE (HIGH FIDELITY) ── */}
           {tab === 'overview' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
               {/* Header Title & Button */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: isMobile ? 'column' : 'row', 
+                gap: '12px', 
+                justifyContent: 'space-between', 
+                alignItems: isMobile ? 'stretch' : 'center' 
+              }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h1 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Administration 🛡️
                   </h1>
                   <p style={{ margin: 0, color: '#64748B', fontSize: '13px', fontWeight: 500 }}>
@@ -371,6 +439,7 @@ export default function AdminDashboard() {
                     borderRadius: '10px',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '8px',
                     cursor: 'pointer',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
@@ -380,8 +449,8 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              {/* Stats Cards Row (4 Columns) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              {/* Stats Cards Row (4 Columns / 2 Columns) */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px' }}>
                 {[
                   { label: "Utilisateurs", value: "1 248", pct: "12%", icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
                   { label: "Missions", value: "356", pct: "18%", icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
@@ -445,7 +514,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Substats Header row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px', borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
                   {[
                     { label: "Nouveaux utilisateurs", value: "245", trend: "↑ 12%" },
                     { label: "Nouvelles missions", value: "125", trend: "↑ 15%" },
@@ -504,7 +573,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Row 4: Recent Users (Left) & Missions Breakdown (Right) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                 
                 {/* Utilisateurs récents */}
                 <div style={{
@@ -550,7 +619,7 @@ export default function AdminDashboard() {
                 }}>
                   <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Répartition des missions</h3>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', alignItems: 'center', justifyContent: 'space-around', height: '100%' }}>
                     {/* Donut SVG */}
                     <div style={{ position: 'relative', width: '120px', height: '120px' }}>
                       <svg width="100%" height="100%" viewBox="0 0 36 36">
@@ -603,7 +672,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Row 5: Last Missions (Left) & Alerts (Right) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                 
                 {/* Dernières missions */}
                 <div style={{
@@ -676,10 +745,10 @@ export default function AdminDashboard() {
               {/* Row 6: Revenue Analytics Wave Block */}
               <div style={{
                 background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px',
-                display: 'flex', alignItems: 'center', gap: '24px'
+                display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: '24px'
               }}>
                 {/* Left Side Info */}
-                <div style={{ width: '220px', flexShrink: 0 }}>
+                <div style={{ width: isMobile ? '100%' : '220px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Revenus</h3>
                     <button style={{ color: '#2563EB', background: 'none', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Voir le détail</button>
@@ -705,7 +774,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Right Side Breakdown */}
-                <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '1px solid #F1F5F9', paddingLeft: '24px' }}>
+                <div style={{ width: isMobile ? '100%' : '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: isMobile ? 'none' : '1px solid #F1F5F9', borderTop: isMobile ? '1px solid #F1F5F9' : 'none', paddingLeft: isMobile ? 0 : '24px', paddingTop: isMobile ? '16px' : 0 }}>
                   {[
                     { label: "Commissions", val: "18 450 €", col: '#3B82F6' },
                     { label: "Abonnements", val: "4 250 €", col: '#10B981' },
@@ -728,14 +797,14 @@ export default function AdminDashboard() {
           {/* ── 2. UTILISATEURS TAB ── */}
           {tab === 'users' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Gestion des Utilisateurs</h1>
-                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV('users')}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
+                <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Gestion des Utilisateurs</h1>
+                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV('users')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Download size={14} /> Exporter la liste (CSV)
                 </button>
               </div>
 
-              <div className="table-responsive" style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px' }}>
+              <div className="table-responsive" style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', borderBottom: '1px solid #F1F5F9', color: '#64748B', fontSize: '12px' }}>
@@ -824,7 +893,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {pros.filter(p => !p.professionalInfo?.verified).map(pro => (
-                      <div key={pro.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={pro.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
                         <div>
                           <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700 }}>{pro.firstName} {pro.lastName}</h4>
                           <div style={{ fontSize: '11px', color: '#64748B' }}>{pro.email} · {pro.phone}</div>
@@ -848,14 +917,14 @@ export default function AdminDashboard() {
           {/* ── 4. MISSIONS TAB ── */}
           {tab === 'missions' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Toutes les Demandes de Soins</h1>
-                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV('missions')}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
+                <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Toutes les Demandes de Soins</h1>
+                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV('missions')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Download size={14} /> Exporter les missions (CSV)
                 </button>
               </div>
 
-              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px' }}>
+              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #F1F5F9', textAlign: 'left', color: '#64748B', fontSize: '12px' }}>
@@ -903,7 +972,7 @@ export default function AdminDashboard() {
           {tab === 'patients' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Liste des Patients</h1>
-              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px' }}>
+              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #F1F5F9', textAlign: 'left', color: '#64748B', fontSize: '12px' }}>
@@ -939,7 +1008,7 @@ export default function AdminDashboard() {
                     { id: "TX-9281", pro: "Claire Moreau", user: "Sophie Martin", type: "Prise de sang", amount: "45.00 €", date: "05/05/2026" },
                     { id: "TX-4832", pro: "Lucas Dubois", user: "Julien Morel", type: "Pansement", amount: "65.00 €", date: "04/05/2026" },
                   ].map((tx, i) => (
-                    <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '13px' }}>Transaction {tx.id}</div>
                         <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
