@@ -35,6 +35,9 @@ export const CARE_TYPES = [
   { id: 'bandage', label: 'Pansement', icon: 'Bandage', description: 'Changement de pansement, soins de plaie' },
   { id: 'injection', label: 'Injection / Vaccin', icon: 'Syringe', description: 'Injections (sous-cutanée, intramusculaire...)' },
   { id: 'hygiene', label: 'Aide à la toilette', icon: 'ShowerHead', description: 'Aide complète ou partielle à la toilette' },
+  { id: 'daily_assistance', label: 'Aide au quotidien', icon: 'Heart', description: 'Aide au lever, au coucher, habillage et repas' },
+  { id: 'housekeeping', label: 'Aide ménagère', icon: 'Plus', description: 'Ménage, repassage et entretien du domicile' },
+  { id: 'companionship', label: 'Compagnie & Sorties', icon: 'User', description: 'Promenade, jeux, lecture et maintien social' },
   { id: 'sutures', label: 'Fils et Agrafes', icon: 'Scissors', description: 'Ablation de fils ou d\'agrafes' },
   { id: 'infusion', label: 'Perfusion', icon: 'Droplets', description: 'Pose et surveillance de perfusion' },
   { id: 'diabetes', label: 'Soins diabétiques', icon: 'Activity', description: 'Insuline, glycémie capillaire' },
@@ -43,7 +46,7 @@ export const CARE_TYPES = [
   { id: 'medication', label: 'Médicaments', icon: 'Pill', description: 'Préparation et distribution des piluliers' },
   { id: 'rehabilitation', label: 'Rééducation', icon: 'Dumbbell', description: 'Exercices et maintien de la mobilité' },
   { id: 'palliative', label: 'Soins palliatifs', icon: 'Heart', description: 'Accompagnement, confort et fin de vie' },
-  { id: 'other', label: 'Autre besoin', icon: 'Plus', description: 'Soin spécifique non listé' },
+  { id: 'other', label: 'Autre besoin', icon: 'Plus', description: 'Soin ou service spécifique non listé' },
 ];
 
 export const SPECIALTIES = [

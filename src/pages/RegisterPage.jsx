@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope } from 'lucide-react';
+import logo from '../assets/logo-medilio.png';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -29,9 +30,9 @@ export default function RegisterPage() {
     <div className="auth-page">
       <div className="auth-card animate-fadeIn">
         <div className="auth-header">
-          <div className="auth-logo">
-            <Activity size={28} />
-            Medilio
+          <div className="auth-logo" style={{ flexDirection: 'column', gap: '12px' }}>
+            <img src={logo} alt="Medilio" style={{ height: '64px', width: 'auto' }} />
+            <span style={{ fontSize: 'var(--font-2xl)', fontWeight: 800 }}>Medilio</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)' }}>
             Créez votre compte gratuitement
@@ -65,7 +66,7 @@ export default function RegisterPage() {
                 onClick={() => update('role', 'professional')}
               >
                 <div className="role-option-icon"><Stethoscope size={22} /></div>
-                <div className="role-option-label">Professionnel</div>
+                <div className="role-option-label">Pro / Intervenant</div>
               </div>
             </div>
           </div>

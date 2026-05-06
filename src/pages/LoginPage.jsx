@@ -137,7 +137,7 @@ export default function LoginPage() {
               onClick={(e) => handleQuickLogin(e, 'lucas.infirmier@email.fr', 'pro123')}
               style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
             >
-              👨‍⚕️ Lucas (Infirmier)
+              👨‍⚕️ Lucas (Pro / Intervenant)
             </button>
             <button 
               className="btn btn-sm btn-secondary btn-block" 

@@ -17,7 +17,7 @@ import {
   Crosshair, Loader2, Droplet, Droplets, TestTube, Wind, Bandage
 } from 'lucide-react';
 
-const ICONS = { Syringe, Bandage, ShowerHead, Activity, Pill, Dumbbell, Heart, Plus, Droplet, Scissors, Droplets, TestTube, Wind };
+const ICONS = { Syringe, Bandage, ShowerHead, Activity, Pill, Dumbbell, Heart, Plus, Droplet, Scissors, Droplets, TestTube, Wind, User };
 
 export default function CreateMission() {
   const navigate = useNavigate();
@@ -195,7 +195,7 @@ export default function CreateMission() {
       {step === 0 && (
         <div className="animate-fadeIn">
           <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 700, marginBottom: 'var(--space-5)' }}>
-            Quel type de soin recherchez-vous ?
+            De quel service ou soin avez-vous besoin ?
           </h2>
           <div className="care-type-grid">
             {CARE_TYPES.map(ct => {
@@ -224,7 +224,7 @@ export default function CreateMission() {
           {/* Address Autocomplete */}
           <div className="form-group" style={{ position: 'relative', zIndex: 2000 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-              <label className="form-label" style={{ margin: 0 }}>Adresse du soin</label>
+              <label className="form-label" style={{ margin: 0 }}>Adresse de l'intervention</label>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"

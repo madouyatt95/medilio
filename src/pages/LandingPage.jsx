@@ -15,13 +15,13 @@ export default function LandingPage() {
       <section className="landing-hero">
         <div className="landing-hero-badge">
           <img src={logo} alt="" style={{ height: '24px', width: 'auto', marginRight: '8px' }} />
-          Plateforme de soins à domicile
+          Plateforme de soins & d'aide à domicile
         </div>
         <h1>
-          Trouvez un <span>infirmier à domicile</span> rapidement
+          Trouvez un <span>intervenant à domicile</span> rapidement
         </h1>
         <p className="landing-hero-text">
-          Medilio connecte les patients et leurs familles avec des professionnels de santé qualifiés pour des soins à domicile de qualité.
+          Medilio connecte les familles avec des soignants qualifiés et des intervenants d'aide à la personne pour un accompagnement à domicile sur-mesure.
         </p>
         <div className="landing-hero-actions">
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/register')}>
@@ -35,7 +35,7 @@ export default function LandingPage() {
         <div className="landing-stats">
           <div className="landing-stat">
             <div className="landing-stat-value">500+</div>
-            <div className="landing-stat-label">Professionnels</div>
+            <div className="landing-stat-label">Intervenants</div>
           </div>
           <div className="landing-stat">
             <div className="landing-stat-value">2 000+</div>
@@ -52,28 +52,28 @@ export default function LandingPage() {
       <section className="landing-section">
         <h2 className="landing-section-title">Comment ça marche ?</h2>
         <p className="landing-section-subtitle">
-          Trois étapes simples pour obtenir des soins à domicile de qualité
+          Trois étapes simples pour obtenir un accompagnement à domicile de qualité
         </p>
         <div className="landing-steps">
           <div className="landing-step">
             <div className="landing-step-number">1</div>
             <h3 className="landing-step-title">Décrivez vos besoins</h3>
             <p className="landing-step-text">
-              Créez une demande en quelques minutes : type de soin, adresse, date et informations du patient.
+              Créez une demande en quelques minutes : soin, aide à la personne, adresse, date et horaires.
             </p>
           </div>
           <div className="landing-step">
             <div className="landing-step-number">2</div>
             <h3 className="landing-step-title">Recevez des candidatures</h3>
             <p className="landing-step-text">
-              Des professionnels qualifiés près de chez vous postulent à votre demande. Consultez leurs profils.
+              Des professionnels et intervenants qualifiés près de chez vous postulent à votre demande. Consultez leurs profils.
             </p>
           </div>
           <div className="landing-step">
             <div className="landing-step-number">3</div>
             <h3 className="landing-step-title">Choisissez votre pro</h3>
             <p className="landing-step-text">
-              Sélectionnez le professionnel qui vous convient le mieux et recevez vos soins à domicile.
+              Sélectionnez l'intervenant qui vous convient le mieux pour vos soins ou votre aide du quotidien.
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function LandingPage() {
       <section className="landing-section">
         <h2 className="landing-section-title">Pourquoi Medilio ?</h2>
         <p className="landing-section-subtitle">
-          Une plateforme pensée pour simplifier l'accès aux soins à domicile
+          Une plateforme pensée pour simplifier l'accès aux services de soin et d'aide à domicile
         </p>
         <div className="landing-features">
           <div className="landing-feature">
@@ -145,8 +145,8 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="landing-cta">
-        <h2>Prêt à trouver votre professionnel de santé ?</h2>
-        <p>Rejoignez Medilio et simplifiez l'accès aux soins à domicile pour vos proches.</p>
+        <h2>Prêt à trouver votre intervenant de confiance ?</h2>
+        <p>Rejoignez Medilio et simplifiez le quotidien et l'accompagnement à domicile de vos proches.</p>
         <button className="btn btn-lg" onClick={() => navigate('/register')}>
           Commencer maintenant
           <ChevronRight size={20} />
