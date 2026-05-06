@@ -384,7 +384,7 @@ function PatientMissions() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">Mes demandes de soins</h1>
+      <h1 className="page-title">Mes demandes</h1>
       <div className="tabs">
         <button className={`tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>Toutes</button>
         <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>En cours</button>
