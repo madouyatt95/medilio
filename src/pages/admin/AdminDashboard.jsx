@@ -71,10 +71,50 @@ export default function AdminDashboard() {
   const patients = users.filter(u => u.role === 'patient');
   const pros = users.filter(u => u.role === 'professional');
   const verifiedPros = pros.filter(p => p.professionalInfo?.verified);
-  const completedMissions = missions.filter(m => m.status === 'completed');
-  const totalRevenue = completedMissions.reduce((s, m) => s + (Number(m.estimatedCost) || 0), 0);
-
+  
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
+
+  // Calcul des métriques financières
+  const completedMissions = missions.filter(m => m.status === 'completed');
+  const familyExpenses = completedMissions.reduce((s, m) => s + (Number(m.estimatedCost) || 0), 0);
+  const platformCommissions = familyExpenses * 0.15;
+  const proRevenues = familyExpenses * 0.85;
+
+  // Calcul des métriques d'activité
+  const totalMissions = missions.length;
+  const assignedMissions = missions.filter(m => m.status === 'assigned');
+  const openMissions = missions.filter(m => m.status === 'open');
+  const cancelledMissions = missions.filter(m => m.status === 'cancelled');
+
+  const assignmentRate = totalMissions > 0 ? (((assignedMissions.length + completedMissions.length) / totalMissions) * 100).toFixed(0) : 0;
+  const completionRate = totalMissions > 0 ? ((completedMissions.length / totalMissions) * 100).toFixed(0) : 0;
+
+  // Palmarès
+  const careTypeCounts = {};
+  missions.forEach(m => {
+    const label = getCareLabel(m.careType);
+    careTypeCounts[label] = (careTypeCounts[label] || 0) + 1;
+  });
+  const topCareTypes = Object.entries(careTypeCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  const cityCounts = {};
+  missions.forEach(m => {
+    if (m.address?.city) {
+      cityCounts[m.address.city] = (cityCounts[m.address.city] || 0) + 1;
+    }
+  });
+  const topCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  const proCounts = {};
+  missions.forEach(m => {
+    if (m.assignedProId) {
+      proCounts[m.assignedProId] = (proCounts[m.assignedProId] || 0) + 1;
+    }
+  });
+  const topPros = Object.entries(proCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([proId, count]) => {
+    const pro = users.find(u => u.id === proId);
+    return { name: pro ? `${pro.firstName} ${pro.lastName}` : 'Inconnu', count };
+  });
 
   const handleToggleUser = async (userId) => {
     if (window.confirm("Modifier le statut d'activation de cet utilisateur ?")) {
@@ -233,7 +273,7 @@ export default function AdminDashboard() {
             {[
               { id: 'overview', label: "Vue d'ensemble", icon: <Home size={18} /> },
               { id: 'users', label: "Utilisateurs", icon: <Users size={18} /> },
-              { id: 'verification', label: "Professionnels", icon: <Shield size={18} /> },
+              { id: 'verification', label: "Intervenants", icon: <Shield size={18} /> },
               { id: 'missions', label: "Missions", icon: <ClipboardList size={18} /> },
               { id: 'patients', label: "Patients", icon: <Heart size={18} /> },
               { id: 'billing', label: "Facturation", icon: <CreditCard size={18} /> },
@@ -452,10 +492,10 @@ export default function AdminDashboard() {
               {/* Stats Cards Row (4 Columns / 2 Columns) */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px' }}>
                 {[
-                  { label: "Utilisateurs", value: "1 248", pct: "12%", icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
-                  { label: "Missions", value: "356", pct: "18%", icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
-                  { label: "Pros vérifiés", value: "842", pct: "9%", icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
-                  { label: "Volume total", value: "128 540 €", pct: "21%", icon: <TrendingUp size={18} />, iconBg: '#FFFBEB', iconCol: '#F59E0B' },
+                  { label: "Utilisateurs", value: users.length.toString(), pct: "12%", icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
+                  { label: "Missions", value: totalMissions.toString(), pct: "18%", icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
+                  { label: "Intervenants vérifiés", value: verifiedPros.length.toString(), pct: "9%", icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
+                  { label: "CA Global", value: `${familyExpenses.toLocaleString('fr-FR')} €`, pct: "21%", icon: <TrendingUp size={18} />, iconBg: '#FFFBEB', iconCol: '#F59E0B' },
                 ].map((stat, idx) => (
                   <div key={idx} style={{
                     background: 'white',
@@ -516,10 +556,10 @@ export default function AdminDashboard() {
                 {/* Substats Header row */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px', borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
                   {[
-                    { label: "Nouveaux utilisateurs", value: "245", trend: "↑ 12%" },
-                    { label: "Nouvelles missions", value: "125", trend: "↑ 15%" },
-                    { label: "Missions terminées", value: "98", trend: "↑ 10%" },
-                    { label: "Revenus générés", value: "24 560 €", trend: "↑ 23%", col: '#F59E0B' },
+                    { label: "Nouveaux utilisateurs", value: users.length.toString(), trend: "↑ 12%" },
+                    { label: "Nouvelles missions", value: totalMissions.toString(), trend: "↑ 15%" },
+                    { label: "Missions terminées", value: completedMissions.length.toString(), trend: "↑ 10%" },
+                    { label: "Commissions générées", value: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, trend: "↑ 23%", col: '#F59E0B' },
                   ].map((sub, i) => (
                     <div key={i}>
                       <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, display: 'block', marginBottom: '2px' }}>{sub.label}</span>
@@ -586,29 +626,30 @@ export default function AdminDashboard() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { name: "Sophie Martin", mail: "sophie.martin@email.com", role: "Professionnel", color: '#ECFDF5', textCol: '#10B981', img: 'https://i.pravatar.cc/150?u=sophie' },
-                      { name: "Lucas Bernard", mail: "lucas.bernard@email.com", role: "Professionnel", color: '#ECFDF5', textCol: '#10B981', img: 'https://i.pravatar.cc/150?u=lucas' },
-                      { name: "Claire Dupont", mail: "claire.dupont@email.com", role: "Patient", color: '#EFF6FF', textCol: '#3B82F6', img: 'https://i.pravatar.cc/150?u=claire' },
-                      { name: "Julien Morel", mail: "julien.morel@email.com", role: "Patient", color: '#EFF6FF', textCol: '#3B82F6', img: 'https://i.pravatar.cc/150?u=julien' },
-                      { name: "Emma Petit", mail: "emma.petit@email.com", role: "Professionnel", color: '#ECFDF5', textCol: '#10B981', img: 'https://i.pravatar.cc/150?u=emma' },
-                    ].map((usr, i) => (
+                    {users.slice(0, 5).map((usr, i) => {
+                      const isPro = usr.role === 'professional';
+                      const roleLabel = isPro ? 'Intervenant' : 'Patient';
+                      const color = isPro ? '#ECFDF5' : '#EFF6FF';
+                      const textCol = isPro ? '#10B981' : '#3B82F6';
+                      return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <img src={usr.img} alt={usr.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: textCol, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                            {usr.firstName?.[0]}{usr.lastName?.[0]}
+                          </div>
                           <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{usr.name}</div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>{usr.mail}</div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{usr.firstName} {usr.lastName}</div>
+                            <div style={{ fontSize: '11px', color: '#64748B' }}>{usr.email}</div>
                           </div>
                         </div>
                         <span style={{
-                          background: usr.color, color: usr.textCol, fontSize: '10px',
+                          background: color, color: textCol, fontSize: '10px',
                           fontWeight: 700, padding: '3px 8px', borderRadius: '6px'
                         }}>
-                          {usr.role}
+                          {roleLabel}
                         </span>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
 
@@ -646,7 +687,7 @@ export default function AdminDashboard() {
                         position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                         textAlign: 'center'
                       }}>
-                        <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>356</div>
+                        <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>{totalMissions}</div>
                         <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 600 }}>Total</div>
                       </div>
                     </div>
@@ -654,10 +695,10 @@ export default function AdminDashboard() {
                     {/* Legends right */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {[
-                        { label: "Terminées", count: "185", pct: "52%", col: '#3B82F6' },
-                        { label: "En cours", count: "100", pct: "28%", col: '#10B981' },
-                        { label: "Assignées", count: "54", pct: "15%", col: '#F59E0B' },
-                        { label: "Annulées", count: "17", pct: "5%", col: '#8B5CF6' },
+                        { label: "Terminées", count: completedMissions.length, pct: `${completionRate}%`, col: '#3B82F6' },
+                        { label: "En cours", count: assignedMissions.length, pct: `${totalMissions ? ((assignedMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#10B981' },
+                        { label: "Assignées", count: openMissions.length, pct: `${totalMissions ? ((openMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#F59E0B' },
+                        { label: "Annulées", count: cancelledMissions.length, pct: `${totalMissions ? ((cancelledMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#8B5CF6' },
                       ].map((lg, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: lg.col }} />
@@ -719,8 +760,8 @@ export default function AdminDashboard() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
-                      { title: "5 professionnels en attente", desc: "Vérifiez les documents en attente de validation.", time: "Il y a 20 min", icon: <Shield size={16} />, bg: '#FEF2F2', col: '#EF4444' },
-                      { title: "3 missions sans réponse", desc: "Des missions sont en attente d'un professionnel.", time: "Il y a 1 h", icon: <ShieldAlert size={16} />, bg: '#FFF7ED', col: '#EA580C' },
+                      { title: `${pros.filter(p => !p.professionalInfo?.verified).length} intervenants en attente`, desc: "Vérifiez les documents en attente de validation.", time: "Il y a 20 min", icon: <Shield size={16} />, bg: '#FEF2F2', col: '#EF4444' },
+                      { title: `${openMissions.length} missions sans réponse`, desc: "Des missions sont en attente d'un intervenant.", time: "Il y a 1 h", icon: <ShieldAlert size={16} />, bg: '#FFF7ED', col: '#EA580C' },
                       { title: "Maintenance programmée", desc: "Le système sera en maintenance le 12/05 à 02:00.", time: "Il y a 3 h", icon: <CheckCircle size={16} />, bg: '#EFF6FF', col: '#2563EB' },
                     ].map((al, i) => (
                       <div key={i} style={{ display: 'flex', gap: '12px', padding: '10px', borderRadius: '12px', background: al.bg }}>
@@ -750,11 +791,11 @@ export default function AdminDashboard() {
                 {/* Left Side Info */}
                 <div style={{ width: isMobile ? '100%' : '220px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Revenus</h3>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Chiffre d'Affaires Global</h3>
                     <button style={{ color: '#2563EB', background: 'none', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Voir le détail</button>
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 2px 0' }}>24 560 €</div>
-                  <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500, marginBottom: '12px' }}>Total ce mois</div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 2px 0' }}>{familyExpenses.toLocaleString('fr-FR')} €</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500, marginBottom: '12px' }}>Dépenses cumulées des familles</div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#10B981', fontWeight: 700, background: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
                     <ArrowUpRight size={12} /> +25% <span style={{ color: '#64748B', fontWeight: 500 }}>vs mois dernier</span>
                   </div>
@@ -774,11 +815,10 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Right Side Breakdown */}
-                <div style={{ width: isMobile ? '100%' : '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: isMobile ? 'none' : '1px solid #F1F5F9', borderTop: isMobile ? '1px solid #F1F5F9' : 'none', paddingLeft: isMobile ? 0 : '24px', paddingTop: isMobile ? '16px' : 0 }}>
+                <div style={{ width: isMobile ? '100%' : '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: isMobile ? 'none' : '1px solid #F1F5F9', borderTop: isMobile ? '1px solid #F1F5F9' : 'none', paddingLeft: isMobile ? 0 : '24px', paddingTop: isMobile ? '16px' : 0 }}>
                   {[
-                    { label: "Commissions", val: "18 450 €", col: '#3B82F6' },
-                    { label: "Abonnements", val: "4 250 €", col: '#10B981' },
-                    { label: "Autres", val: "1 860 €", col: '#8B5CF6' },
+                    { label: "Part Intervenants (85%)", val: `${proRevenues.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#10B981' },
+                    { label: "Commissions (15%)", val: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#3B82F6' },
                   ].map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -788,6 +828,50 @@ export default function AdminDashboard() {
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>{item.val}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              </div>
+
+              {/* Row 7: Tops */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Soins les plus demandés</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {topCareTypes.length === 0 && <div style={{ fontSize: '12px', color: '#64748B' }}>Aucune donnée</div>}
+                    {topCareTypes.map(([type, count], i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{type}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#3B82F6', background: '#EFF6FF', padding: '2px 8px', borderRadius: '12px' }}>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Zones les plus actives</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {topCities.length === 0 && <div style={{ fontSize: '12px', color: '#64748B' }}>Aucune donnée</div>}
+                    {topCities.map(([city, count], i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{city}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', padding: '2px 8px', borderRadius: '12px' }}>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Intervenants très sollicités</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {topPros.length === 0 && <div style={{ fontSize: '12px', color: '#64748B' }}>Aucune donnée</div>}
+                    {topPros.map((pro, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pro.name}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#F59E0B', background: '#FFFBEB', padding: '2px 8px', borderRadius: '12px' }}>{pro.count} mis.</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -875,12 +959,12 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ── 3. PROFESSIONNELS TAB (VÉRIFICATION) ── */}
+          {/* ── 3. INTERVENANTS TAB (VÉRIFICATION) ── */}
           {tab === 'verification' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
                 <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Demandes de vérification d'infirmiers</h1>
-                <p style={{ color: '#64748B', fontSize: '13px', margin: '4px 0 0 0' }}>Vérifiez et validez les qualifications et pièces justificatives des professionnels.</p>
+                <p style={{ color: '#64748B', fontSize: '13px', margin: '4px 0 0 0' }}>Vérifiez et validez les qualifications et pièces justificatives des intervenants.</p>
               </div>
 
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
@@ -1095,7 +1179,7 @@ export default function AdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-handle" />
             <div className="modal-header">
-              <h3 className="modal-title">Vérifier le professionnel</h3>
+              <h3 className="modal-title">Vérifier l'intervenant</h3>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowVerifyModal(null)}><X size={20} /></button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
