@@ -831,8 +831,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              </div>
-
               {/* Row 7: Tops */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
                 <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
