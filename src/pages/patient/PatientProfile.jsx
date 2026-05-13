@@ -82,8 +82,13 @@ export default function PatientProfile() {
         <h2 style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-primary)' }}>
           {user?.firstName || 'Patient'} {user?.lastName || ''}
         </h2>
+        {user?.role === 'establishment' && user?.establishmentInfo?.name && (
+          <div style={{ fontSize: 'var(--font-md)', fontWeight: 700, color: 'var(--color-primary)', marginTop: '4px' }}>
+            🏥 {user.establishmentInfo.name}
+          </div>
+        )}
         <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginTop: '4px' }}>
-          Patient / Famille
+          {user?.role === 'establishment' ? (user?.establishmentInfo?.type || 'Établissement de santé') : 'Patient / Famille'}
         </div>
       </div>
 

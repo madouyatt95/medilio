@@ -214,6 +214,10 @@ function BottomNav() {
           <CalendarIcon size={20} className="bottom-nav-icon" />
           <span>Agenda</span>
         </Link>
+        <Link to="/etab/profile" className={`bottom-nav-item ${isActive('/etab/profile') ? 'active' : ''}`}>
+          <User size={20} className="bottom-nav-icon" />
+          <span>Profil</span>
+        </Link>
       </nav>
     );
   }
