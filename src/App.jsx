@@ -341,6 +341,7 @@ import DocumentsPage from './pages/patient/DocumentsPage';
 import EtabDashboard from './pages/establishment/EtabDashboard';
 import EtabCreateMission from './pages/establishment/EtabCreateMission';
 import EtabPatients from './pages/establishment/EtabPatients';
+import EtabProfile from './pages/establishment/EtabProfile';
 
 // ── Main App Content ──
 function AppContent() {
@@ -416,7 +417,7 @@ function AppContent() {
         <Route path="/etab/mission/:id" element={<ProtectedRoute allowedRoles={['establishment']}><PatientMissionDetail /></ProtectedRoute>} />
         <Route path="/etab/messages" element={<ProtectedRoute allowedRoles={['establishment']}><MessagesPage /></ProtectedRoute>} />
         <Route path="/etab/calendar" element={<ProtectedRoute allowedRoles={['establishment']}><CalendarPage /></ProtectedRoute>} />
-        <Route path="/etab/profile" element={<ProtectedRoute allowedRoles={['establishment']}><PatientProfile /></ProtectedRoute>} />
+        <Route path="/etab/profile" element={<ProtectedRoute allowedRoles={['establishment']}><EtabProfile /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
