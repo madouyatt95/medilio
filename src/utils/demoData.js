@@ -2,13 +2,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import storageService from '../services/storageService';
 
-const DEMO_SEEDED_KEY = 'medilio_demo_v7';
+const DEMO_SEEDED_KEY = 'medilio_demo_v8';
 
 export function seedDemoData() {
   if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
   
   // Clean old versions
   localStorage.removeItem('medilio_demo_v5');
+  localStorage.removeItem('medilio_demo_v6');
+  localStorage.removeItem('medilio_demo_v7');
   localStorage.removeItem('medilio_demo_v4');
   localStorage.removeItem('medilio_demo_v3');
   localStorage.removeItem('medilio_current_user');
@@ -112,7 +114,64 @@ export function seedDemoData() {
     },
   };
 
-  const users = [admin, patient1, patient2, pro1, proLucas];
+  // ── Establishment ──
+  const establishment1 = {
+    id: 'etab-0000-0000-0000-000000000001',
+    email: 'clinique.pasteur@email.fr',
+    password: btoa('etab123'),
+    role: 'establishment',
+    firstName: 'Dr. Laurent',
+    lastName: 'Girard',
+    phone: '01 42 33 44 55',
+    avatar: null,
+    createdAt: lastWeek.toISOString(),
+    address: { street: '36 Boulevard Saint-Marcel', city: 'Paris', postalCode: '75005' },
+    establishmentInfo: {
+      name: 'Clinique Pasteur',
+      type: 'Clinique',
+      finessNumber: '750012345',
+      service: 'G\u00e9riatrie',
+      verified: true,
+    },
+    professionalInfo: null,
+  };
+
+  // ── Managed patients (by establishment) ──
+  const managedPatient1 = {
+    id: 'managed-patient-0001',
+    email: '',
+    role: 'patient',
+    firstName: 'Ren\u00e9',
+    lastName: 'Bouchard',
+    phone: '06 11 22 33 44',
+    avatar: null,
+    createdAt: yesterday.toISOString(),
+    address: { street: '10 Rue de Vaugirard', city: 'Paris', postalCode: '75006' },
+    patientAge: 82,
+    patientConditions: 'Post-op hanche, diab\u00e8te type 2',
+    managedByEstablishmentId: establishment1.id,
+    managedAccount: true,
+    professionalInfo: null,
+  };
+
+  const managedPatient2 = {
+    id: 'managed-patient-0002',
+    email: '',
+    role: 'patient',
+    firstName: 'Madeleine',
+    lastName: 'Faure',
+    phone: '06 99 88 77 66',
+    avatar: null,
+    createdAt: yesterday.toISOString(),
+    address: { street: '25 Rue Monge', city: 'Paris', postalCode: '75005' },
+    patientAge: 91,
+    patientConditions: 'Alzheimer l\u00e9ger, hypertension',
+    managedByEstablishmentId: establishment1.id,
+    managedAccount: true,
+    professionalInfo: null,
+  };
+
+  const users = [admin, patient1, patient2, pro1, proLucas, establishment1, managedPatient1, managedPatient2];
 
   // ── Today's Date String ──
   const todayStr = dayStart.toISOString().split('T')[0];
@@ -277,7 +336,52 @@ export function seedDemoData() {
     },
   ];
 
-  const allMissions = [...openMissions, ...tourMissions, ...historicalMissions];
+  // ── Establishment discharge mission ──
+  const dischargeMission = {
+    id: uuidv4(),
+    patientId: establishment1.id,
+    status: 'open',
+    careType: 'bandage',
+    description: 'Soins post-op\u00e9ratoires suite \u00e0 proth\u00e8se de hanche. Pansement quotidien + surveillance cicatrisation.',
+    address: { street: '10 Rue de Vaugirard', city: 'Paris', postalCode: '75006', lat: 48.8495, lng: 2.3335 },
+    scheduledDate: tomorrow.toISOString().split('T')[0],
+    scheduledTime: '09:00',
+    patientInfo: { name: 'Ren\u00e9 Bouchard', age: 82, conditions: 'Post-op hanche, diab\u00e8te type 2' },
+    applicants: [],
+    assignedProId: null,
+    careNotes: [],
+    createdAt: now.toISOString(),
+    estimatedCost: 45,
+    estimatedDuration: 45,
+    recurrence: 'daily',
+    createdByEstablishmentId: establishment1.id,
+    dischargeMode: true,
+    dischargeDate: todayStr,
+    medicalNotes: 'Sortie apr\u00e8s proth\u00e8se totale de hanche droite. Pansement \u00e0 changer tous les jours. Surveiller rougeur et temp\u00e9rature. Anticoagulants \u00e0 19h.',
+  };
+
+  const etabStandardMission = {
+    id: uuidv4(),
+    patientId: establishment1.id,
+    status: 'open',
+    careType: 'hygiene',
+    description: 'Aide \u00e0 la toilette quotidienne pour patiente \u00e2g\u00e9e avec mobilit\u00e9 r\u00e9duite.',
+    address: { street: '25 Rue Monge', city: 'Paris', postalCode: '75005', lat: 48.8462, lng: 2.3511 },
+    scheduledDate: tomorrow.toISOString().split('T')[0],
+    scheduledTime: '08:00',
+    patientInfo: { name: 'Madeleine Faure', age: 91, conditions: 'Alzheimer l\u00e9ger, hypertension' },
+    applicants: [],
+    assignedProId: null,
+    careNotes: [],
+    createdAt: now.toISOString(),
+    estimatedCost: 35,
+    estimatedDuration: 60,
+    recurrence: 'daily',
+    createdByEstablishmentId: establishment1.id,
+    dischargeMode: false,
+  };
+
+  const allMissions = [...openMissions, ...tourMissions, ...historicalMissions, dischargeMission, etabStandardMission];
 
   // ── Notifications ──
   const notifications = [

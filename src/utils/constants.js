@@ -4,7 +4,19 @@ export const ROLES = {
   PATIENT: 'patient',
   PROFESSIONAL: 'professional',
   ADMIN: 'admin',
+  ESTABLISHMENT: 'establishment',
 };
+
+export const ESTABLISHMENT_TYPES = [
+  'Clinique',
+  'Hôpital',
+  'EHPAD',
+  'SSIAD',
+  'Centre de soins',
+  'HAD',
+  'Cabinet médical',
+  'Autre',
+];
 
 export const MISSION_STATUS = {
   OPEN: 'open',
@@ -114,4 +126,5 @@ export const NOTIFICATION_TYPES = {
   MISSION_ACCEPTED: 'mission_accepted',
   MISSION_COMPLETED: 'mission_completed',
   REMINDER: 'reminder',
+  DISCHARGE_MISSION: 'discharge_mission',
 };

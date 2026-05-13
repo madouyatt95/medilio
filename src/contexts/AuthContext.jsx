@@ -122,6 +122,7 @@ export function AuthProvider({ children }) {
       isPatient: user?.role === 'patient',
       isProfessional: user?.role === 'professional',
       isAdmin: user?.role === 'admin',
+      isEstablishment: user?.role === 'establishment',
     }}>
       {children}
     </AuthContext.Provider>

@@ -43,6 +43,10 @@ export const missionService = {
       estimatedDuration: row.estimated_duration || 30,
       estimatedCost: row.estimated_cost || 0,
       recurrence: row.recurrence || 'none',
+      createdByEstablishmentId: row.created_by_establishment_id || null,
+      dischargeMode: row.discharge_mode || false,
+      dischargeDate: row.discharge_date || null,
+      medicalNotes: row.medical_notes || '',
     };
   },
 
@@ -125,6 +129,10 @@ export const missionService = {
       recurrence: missionData.recurrence || 'none',
       recurrence_end_date: missionData.recurrenceEndDate || null,
       documents: uploadedDocs,
+      created_by_establishment_id: missionData.createdByEstablishmentId || null,
+      discharge_mode: missionData.dischargeMode || false,
+      discharge_date: missionData.dischargeDate || null,
+      medical_notes: missionData.medicalNotes || '',
     }));
 
     // Try Supabase first, fallback to local storage if DB schema is incomplete
@@ -167,6 +175,10 @@ export const missionService = {
         estimatedDuration: missionData.estimatedDuration || 30,
         estimatedCost: missionData.estimatedCost || 0,
         recurrence: missionData.recurrence || 'none',
+        createdByEstablishmentId: missionData.createdByEstablishmentId || null,
+        dischargeMode: missionData.dischargeMode || false,
+        dischargeDate: missionData.dischargeDate || null,
+        medicalNotes: missionData.medicalNotes || '',
       };
 
       const existing = storageService.getMissions();

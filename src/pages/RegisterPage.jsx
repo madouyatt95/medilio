@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope, Building2 } from 'lucide-react';
+import { ESTABLISHMENT_TYPES } from '../utils/constants';
 import logo from '../assets/logo-medilio.png';
 
 export default function RegisterPage() {
@@ -10,6 +11,7 @@ export default function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '', role: 'patient',
+    establishmentName: '', establishmentType: '', finessNumber: '', service: '',
   });
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -20,6 +22,7 @@ export default function RegisterPage() {
     try {
       const user = await register(form);
       if (user.role === 'professional') navigate('/pro/dashboard');
+      else if (user.role === 'establishment') navigate('/etab/dashboard');
       else navigate('/patient/dashboard');
     } catch {
       // error set in context
@@ -68,8 +71,44 @@ export default function RegisterPage() {
                 <div className="role-option-icon"><Stethoscope size={22} /></div>
                 <div className="role-option-label">Pro / Intervenant</div>
               </div>
+              <div
+                className={`role-option ${form.role === 'establishment' ? 'selected' : ''}`}
+                onClick={() => update('role', 'establishment')}
+              >
+                <div className="role-option-icon"><Building2 size={22} /></div>
+                <div className="role-option-label">Établissement</div>
+              </div>
             </div>
           </div>
+
+          {form.role === 'establishment' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Nom de l'établissement *</label>
+                <input className="form-input" placeholder="Clinique Pasteur" value={form.establishmentName}
+                  onChange={e => update('establishmentName', e.target.value)} required />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                <div className="form-group">
+                  <label className="form-label">Type</label>
+                  <select className="form-input" value={form.establishmentType} onChange={e => update('establishmentType', e.target.value)}>
+                    <option value="">Sélectionner...</option>
+                    {ESTABLISHMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">N° FINESS</label>
+                  <input className="form-input" placeholder="Optionnel" value={form.finessNumber}
+                    onChange={e => update('finessNumber', e.target.value)} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Service / Département</label>
+                <input className="form-input" placeholder="Ex: Gériatrie, Cardiologie..." value={form.service}
+                  onChange={e => update('service', e.target.value)} />
+              </div>
+            </>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">

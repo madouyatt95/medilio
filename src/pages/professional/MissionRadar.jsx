@@ -325,9 +325,15 @@ export default function MissionRadar() {
             >
               <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#67E8F9', boxShadow: '0 0 8px #67E8F9' }} />
                     {getCareLabel(mission.careType)}
+                    {mission.createdByEstablishmentId && (
+                      <span style={{ fontSize: 9, background: 'rgba(99,102,241,0.2)', color: '#818CF8', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>🏥 Établissement</span>
+                    )}
+                    {mission.dischargeMode && (
+                      <span style={{ fontSize: 9, background: 'rgba(16,185,129,0.2)', color: '#34D399', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>🏠 RAD</span>
+                    )}
                   </div>
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
                     {mission.computedDistance ? `${mission.computedDistance.toFixed(1)} km` : mission.address?.city}

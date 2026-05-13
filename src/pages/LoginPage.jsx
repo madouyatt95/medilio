@@ -18,6 +18,7 @@ export default function LoginPage() {
       const u = await login(email, password);
       if (u.role === 'admin') navigate('/admin');
       else if (u.role === 'professional') navigate('/pro/dashboard');
+      else if (u.role === 'establishment') navigate('/etab/dashboard');
       else navigate('/patient/dashboard');
     } catch {
       // error is set in context
@@ -34,6 +35,7 @@ export default function LoginPage() {
       const u = await login(qEmail, qPassword);
       if (u.role === 'admin') navigate('/admin');
       else if (u.role === 'professional') navigate('/pro/dashboard');
+      else if (u.role === 'establishment') navigate('/etab/dashboard');
       else navigate('/patient/dashboard');
     } catch (err) {
       console.error('Quick login failed', err);
@@ -145,6 +147,13 @@ export default function LoginPage() {
               style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
             >
               🛠 Admin
+            </button>
+            <button 
+              className="btn btn-sm btn-secondary btn-block" 
+              onClick={(e) => handleQuickLogin(e, 'clinique.pasteur@email.fr', 'etab123')}
+              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
+            >
+              🏥 Clinique Pasteur (Établissement)
             </button>
           </div>
         </div>

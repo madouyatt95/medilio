@@ -3,7 +3,7 @@ import supabase from '../lib/supabase';
 import storageService from './storageService';
 
 export const authService = {
-  async register({ email, password, role, firstName, lastName, phone }) {
+  async register({ email, password, role, firstName, lastName, phone, establishmentName, establishmentType, finessNumber, service }) {
     // 1. Create auth user with metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -22,17 +22,27 @@ export const authService = {
     // 2. Update the profile with extra fields (trigger creates the base profile)
     const userId = authData.user?.id;
     if (userId) {
+      const profileUpdate = {
+        phone: phone || '',
+        city: '',
+        street: '',
+        postal_code: '',
+        specialties: role === 'professional' ? [] : null,
+        bio: role === 'professional' ? '' : null,
+        radius: role === 'professional' ? 20 : null,
+      };
+
+      // Establishment-specific fields
+      if (role === 'establishment') {
+        profileUpdate.establishment_name = establishmentName || '';
+        profileUpdate.establishment_type = establishmentType || '';
+        profileUpdate.finess_number = finessNumber || '';
+        profileUpdate.service = service || '';
+      }
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          phone: phone || '',
-          city: '',
-          street: '',
-          postal_code: '',
-          specialties: role === 'professional' ? [] : null,
-          bio: role === 'professional' ? '' : null,
-          radius: role === 'professional' ? 20 : null,
-        })
+        .update(profileUpdate)
         .eq('id', userId);
 
       if (profileError) {
@@ -133,6 +143,13 @@ export const authService = {
         bio: data.bio || '',
         verified: data.verified || false,
       } : null,
+      establishmentInfo: data.role === 'establishment' ? {
+        name: data.establishment_name || '',
+        type: data.establishment_type || '',
+        finessNumber: data.finess_number || '',
+        service: data.service || '',
+        verified: data.verified || false,
+      } : null,
       disabled: data.disabled || false,
     };
   },
@@ -156,6 +173,14 @@ export const authService = {
       if (updates.professionalInfo.verified !== undefined) dbUpdates.verified = updates.professionalInfo.verified;
     }
     if (updates.disabled !== undefined) dbUpdates.disabled = updates.disabled;
+    // Establishment fields
+    if (updates.establishmentInfo) {
+      if (updates.establishmentInfo.name !== undefined) dbUpdates.establishment_name = updates.establishmentInfo.name;
+      if (updates.establishmentInfo.type !== undefined) dbUpdates.establishment_type = updates.establishmentInfo.type;
+      if (updates.establishmentInfo.finessNumber !== undefined) dbUpdates.finess_number = updates.establishmentInfo.finessNumber;
+      if (updates.establishmentInfo.service !== undefined) dbUpdates.service = updates.establishmentInfo.service;
+      if (updates.establishmentInfo.verified !== undefined) dbUpdates.verified = updates.establishmentInfo.verified;
+    }
 
     // ── Local Demo Update ──
     const localUsers = storageService.getUsers();

@@ -5,7 +5,7 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 import { useEffect, useState } from 'react';
 import { seedDemoData } from './utils/demoData';
 import {
-  Activity, Home, ClipboardList, User, Radar as RadarIcon,
+  Activity, Home, ClipboardList, User, Users, Radar as RadarIcon,
   TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle,
   Plus, MessageSquare
 } from 'lucide-react';
@@ -77,12 +77,15 @@ function Header() {
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('create-mission')) return null;
 
-  const profilePath = user?.role === 'patient' ? '/patient/profile' : user?.role === 'professional' ? '/pro/profile' : null;
+  const profilePath = user?.role === 'patient' ? '/patient/profile'
+    : user?.role === 'professional' ? '/pro/profile'
+    : user?.role === 'establishment' ? '/etab/profile'
+    : null;
 
   return (
     <>
       <header className="header">
-        <div className="header-logo" onClick={() => navigate(user ? (user.role === 'professional' ? '/pro/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/patient/dashboard') : '/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        <div className="header-logo" onClick={() => navigate(user ? (user.role === 'professional' ? '/pro/dashboard' : user.role === 'admin' ? '/admin/dashboard' : user.role === 'establishment' ? '/etab/dashboard' : '/patient/dashboard') : '/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
           <img src={logo} alt="Medilio" style={{ height: '32px', width: 'auto', marginRight: 'var(--space-2)' }} />
           <span style={{ fontWeight: 800, fontSize: 'var(--font-lg)', letterSpacing: '-0.02em' }}>Medilio</span>
         </div>
@@ -170,6 +173,51 @@ function BottomNav() {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
   const unreadNotifs = notifications.filter(n => !n.read).length;
+
+  if (user?.role === 'establishment') {
+    return (
+      <nav className="bottom-nav">
+        <Link to="/etab/dashboard" className={`bottom-nav-item ${isActive('/etab/dashboard') ? 'active' : ''}`}>
+          <Home size={20} className="bottom-nav-icon" />
+          <span>Accueil</span>
+        </Link>
+        <Link to="/etab/patients" className={`bottom-nav-item ${isActive('/etab/patients') ? 'active' : ''}`}>
+          <Users size={20} className="bottom-nav-icon" />
+          <span>Patients</span>
+        </Link>
+        <Link to="/etab/create-mission" className={`bottom-nav-item ${isActive('/etab/create-mission') ? 'active' : ''}`} style={{ position: 'relative' }}>
+          <div style={{
+            background: 'var(--color-primary)',
+            color: 'white',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+            marginTop: '-12px',
+            marginBottom: '2px'
+          }}>
+            <Plus size={20} color="white" />
+          </div>
+          <span>Nouveau</span>
+        </Link>
+        <Link to="/etab/messages" className={`bottom-nav-item ${isActive('/etab/messages') ? 'active' : ''}`} style={{ position: 'relative' }}>
+          <MessageSquare size={20} className="bottom-nav-icon" />
+          <span>Messages</span>
+          {unreadNotifs > 0 && (
+            <span className="badge-nav">{unreadNotifs}</span>
+          )}
+        </Link>
+        <Link to="/etab/calendar" className={`bottom-nav-item ${isActive('/etab/calendar') ? 'active' : ''}`}>
+          <CalendarIcon size={20} className="bottom-nav-icon" />
+          <span>Agenda</span>
+        </Link>
+      </nav>
+    );
+  }
+
 
   if (user?.role === 'patient') {
     return (
@@ -286,6 +334,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ProPublicProfile from './pages/professional/ProPublicProfile';
 import MessagesPage from './pages/MessagesPage';
 import DocumentsPage from './pages/patient/DocumentsPage';
+import EtabDashboard from './pages/establishment/EtabDashboard';
+import EtabCreateMission from './pages/establishment/EtabCreateMission';
+import EtabPatients from './pages/establishment/EtabPatients';
 
 // ── Main App Content ──
 function AppContent() {
@@ -353,6 +404,15 @@ function AppContent() {
 
         {/* Admin Routes */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+
+        {/* Establishment Routes */}
+        <Route path="/etab/dashboard" element={<ProtectedRoute allowedRoles={['establishment']}><EtabDashboard /></ProtectedRoute>} />
+        <Route path="/etab/create-mission" element={<ProtectedRoute allowedRoles={['establishment']}><EtabCreateMission /></ProtectedRoute>} />
+        <Route path="/etab/patients" element={<ProtectedRoute allowedRoles={['establishment']}><EtabPatients /></ProtectedRoute>} />
+        <Route path="/etab/mission/:id" element={<ProtectedRoute allowedRoles={['establishment']}><PatientMissionDetail /></ProtectedRoute>} />
+        <Route path="/etab/messages" element={<ProtectedRoute allowedRoles={['establishment']}><MessagesPage /></ProtectedRoute>} />
+        <Route path="/etab/calendar" element={<ProtectedRoute allowedRoles={['establishment']}><CalendarPage /></ProtectedRoute>} />
+        <Route path="/etab/profile" element={<ProtectedRoute allowedRoles={['establishment']}><PatientProfile /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
