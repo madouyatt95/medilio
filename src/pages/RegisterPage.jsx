@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope, Building2 } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope, Building2, MapPin } from 'lucide-react';
 import { ESTABLISHMENT_TYPES } from '../utils/constants';
 import logo from '../assets/logo-medilio.png';
 
@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '', role: 'patient',
+    street: '', city: '', postalCode: '',
     establishmentName: '', establishmentType: '', finessNumber: '', service: '',
   });
 
@@ -146,6 +147,32 @@ export default function RegisterPage() {
               <input className="form-input" type="tel" placeholder="06 12 34 56 78"
                 value={form.phone} onChange={e => update('phone', e.target.value)}
                 style={{ paddingLeft: 44 }} />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Adresse (Rue/Voie) *</label>
+            <div style={{ position: 'relative' }}>
+              <MapPin size={18} style={{
+                position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                color: 'var(--text-tertiary)'
+              }} />
+              <input className="form-input" placeholder="12 Rue de la Paix"
+                value={form.street} onChange={e => update('street', e.target.value)} required
+                style={{ paddingLeft: 44 }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="form-group">
+              <label className="form-label">Code Postal *</label>
+              <input className="form-input" placeholder="75002"
+                value={form.postalCode} onChange={e => update('postalCode', e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Ville *</label>
+              <input className="form-input" placeholder="Paris"
+                value={form.city} onChange={e => update('city', e.target.value)} required />
             </div>
           </div>
 

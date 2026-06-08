@@ -3,7 +3,7 @@ import supabase from '../lib/supabase';
 import storageService from './storageService';
 
 export const authService = {
-  async register({ email, password, role, firstName, lastName, phone, establishmentName, establishmentType, finessNumber, service }) {
+  async register({ email, password, role, firstName, lastName, phone, street, city, postalCode, establishmentName, establishmentType, finessNumber, service }) {
     // 1. Create auth user with metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -24,9 +24,9 @@ export const authService = {
     if (userId) {
       const profileUpdate = {
         phone: phone || '',
-        city: '',
-        street: '',
-        postal_code: '',
+        city: city || '',
+        street: street || '',
+        postal_code: postalCode || '',
         specialties: role === 'professional' ? [] : null,
         bio: role === 'professional' ? '' : null,
         radius: role === 'professional' ? 20 : null,
