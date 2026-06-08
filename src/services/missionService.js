@@ -192,19 +192,24 @@ export const missionService = {
     const localMissions = storageService.getMissions();
 
     // ── Supabase Missions ──
-    const { data, error } = await supabase
-      .from('missions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('missions')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+      if (error) throw error;
 
-    const remoteMissions = await Promise.all((data || []).map(m => this._fetchFull(m)));
-    
-    // Merge: Demo missions usually have different UUIDs than Supabase ones
-    return [...localMissions, ...remoteMissions].sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
+      const remoteMissions = await Promise.all((data || []).map(m => this._fetchFull(m)));
+      
+      // Merge: Demo missions usually have different UUIDs than Supabase ones
+      return [...localMissions, ...remoteMissions].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+    } catch (err) {
+      console.warn("Supabase fetch failed in getAll, returning locals only", err);
+      return localMissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
   },
 
   async getById(id) {

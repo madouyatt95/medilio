@@ -121,19 +121,30 @@ export const ratingService = {
 
   async getAllProRatings() {
     const localRatings = storageService.getRatings();
-    const { data } = await supabase.from('ratings').select('*');
-    const remotes = (data || []).map(r => ({
-      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
-      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
-    }));
+    try {
+      const { data, error } = await supabase.from('ratings').select('*');
+      if (error) throw error;
+      const remotes = (data || []).map(r => ({
+        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+      }));
 
-    const all = [...localRatings, ...remotes];
-    const proMap = {};
-    all.forEach(r => {
-      if (!proMap[r.proId]) proMap[r.proId] = [];
-      proMap[r.proId].push(r);
-    });
-    return proMap;
+      const all = [...localRatings, ...remotes];
+      const proMap = {};
+      all.forEach(r => {
+        if (!proMap[r.proId]) proMap[r.proId] = [];
+        proMap[r.proId].push(r);
+      });
+      return proMap;
+    } catch (err) {
+      console.warn("Supabase fetch failed in getAllProRatings, returning locals only", err);
+      const proMap = {};
+      localRatings.forEach(r => {
+        if (!proMap[r.proId]) proMap[r.proId] = [];
+        proMap[r.proId].push(r);
+      });
+      return proMap;
+    }
   },
 };
 

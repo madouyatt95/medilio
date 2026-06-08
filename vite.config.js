@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      manifestFilename: 'manifest.json',
       manifest: {
         name: 'Medilio Healthcare',
         short_name: 'Medilio',
