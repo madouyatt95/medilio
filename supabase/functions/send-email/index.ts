@@ -60,9 +60,9 @@ serve(async request => {
   const requestOrigin = request.headers.get('origin') || configuredOrigins[0];
   const responseOrigin = configuredOrigins.includes(requestOrigin) ? requestOrigin : configuredOrigins[0];
 
+  if (!configuredOrigins.includes(requestOrigin)) return json({ error: 'Origine non autorisée.' }, 403, responseOrigin);
   if (request.method === 'OPTIONS') return json({ ok: true }, 200, responseOrigin);
   if (request.method !== 'POST') return json({ error: 'Méthode non autorisée.' }, 405, responseOrigin);
-  if (!configuredOrigins.includes(requestOrigin)) return json({ error: 'Origine non autorisée.' }, 403, responseOrigin);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -70,8 +70,8 @@ serve(async request => {
   const senderEmail = Deno.env.get('SENDER_EMAIL');
   const senderName = Deno.env.get('SENDER_NAME') || 'Medilio';
   const appUrl = Deno.env.get('APP_URL') || configuredOrigins[0];
-  if (!supabaseUrl || !serviceRoleKey || !brevoApiKey || !senderEmail) {
-    return json({ error: 'Service email non configuré.' }, 503, responseOrigin);
+  if (!supabaseUrl || !serviceRoleKey) {
+    return json({ error: 'Service indisponible.' }, 503, responseOrigin);
   }
 
   const authorization = request.headers.get('authorization');
@@ -83,6 +83,9 @@ serve(async request => {
   });
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   if (authError || !authData.user) return json({ error: 'Session invalide.' }, 401, responseOrigin);
+  if (!brevoApiKey || !senderEmail) {
+    return json({ error: 'Service email non configuré.' }, 503, responseOrigin);
+  }
 
   let payload: { event?: string; missionId?: string };
   try {
@@ -95,7 +98,8 @@ serve(async request => {
   }
 
   const actorId = authData.user.id;
-  const { data: mission, error: missionError } = await admin.from('missions').select('*')
+  const { data: mission, error: missionError } = await admin.from('missions')
+    .select('id,patient_id,created_by_establishment_id,assigned_pro_id,status,scheduled_date')
     .eq('id', payload.missionId).single();
   if (missionError || !mission) return json({ error: 'Mission introuvable.' }, 404, responseOrigin);
 
@@ -110,12 +114,10 @@ serve(async request => {
       .eq('mission_id', mission.id).eq('pro_id', actorId).maybeSingle();
     if (!application) return json({ error: 'Candidature non autorisée.' }, 403, responseOrigin);
     recipientId = mission.created_by_establishment_id || mission.patient_id;
-    const { data: actor } = await admin.from('profiles').select('first_name,last_name').eq('id', actorId).single();
-    const professionalName = `${actor?.first_name || ''} ${actor?.last_name || ''}`.trim() || 'Un professionnel';
     title = 'Nouvelle candidature';
-    subject = `Nouvelle candidature pour votre mission ${mission.care_type}`;
-    body = `<p style="line-height:1.6"><strong>${escapeHtml(professionalName)}</strong> a postulé à votre mission de <strong>${escapeHtml(mission.care_type)}</strong>.</p>`;
-    link = mission.created_by_establishment_id ? `/etab/mission/${mission.id}` : `/patient/mission/${mission.id}`;
+    subject = 'Nouvelle candidature sur Medilio';
+    body = '<p style="line-height:1.6">Une nouvelle candidature est disponible dans votre espace sécurisé Medilio.</p>';
+    link = mission.created_by_establishment_id ? '/etab/dashboard' : '/patient/dashboard';
   } else if (payload.event === 'mission_accepted') {
     const isOwner = actorId === mission.patient_id || actorId === mission.created_by_establishment_id;
     if (!isOwner || !mission.assigned_pro_id || mission.status !== 'assigned') {
@@ -123,9 +125,9 @@ serve(async request => {
     }
     recipientId = mission.assigned_pro_id;
     title = 'Candidature acceptée';
-    subject = `Votre candidature a été acceptée — ${mission.care_type}`;
+    subject = 'Votre candidature a été acceptée';
     body = `<p style="line-height:1.6">Votre candidature a été acceptée. Les coordonnées précises sont désormais disponibles dans l’espace sécurisé Medilio.</p>`;
-    link = `/pro/mission/${mission.id}`;
+    link = '/pro/dashboard';
   } else {
     const isParticipant = actorId === mission.patient_id
       || actorId === mission.created_by_establishment_id
@@ -138,11 +140,11 @@ serve(async request => {
     }
     recipientId = actorId;
     title = 'Rappel de mission';
-    subject = `Rappel — mission ${mission.care_type} le ${mission.scheduled_date}`;
-    body = `<p style="line-height:1.6">Votre mission de <strong>${escapeHtml(mission.care_type)}</strong> est prévue le <strong>${escapeHtml(mission.scheduled_date)}</strong> à <strong>${escapeHtml(mission.scheduled_time)}</strong>.</p>`;
+    subject = 'Rappel de mission Medilio';
+    body = '<p style="line-height:1.6">Une mission est prévue demain. Consultez votre espace sécurisé Medilio pour les détails.</p>';
     link = actorId === mission.assigned_pro_id
-      ? `/pro/mission/${mission.id}`
-      : mission.created_by_establishment_id ? `/etab/mission/${mission.id}` : `/patient/mission/${mission.id}`;
+      ? '/pro/dashboard'
+      : mission.created_by_establishment_id ? '/etab/dashboard' : '/patient/dashboard';
   }
 
   const { data: recipient, error: recipientError } = await admin.from('profiles')

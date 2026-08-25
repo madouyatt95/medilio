@@ -9,6 +9,7 @@ const applicationSource = sourceFiles
   .join('\n');
 const runtimeSource = readFileSync('src/config/runtime.js', 'utf8');
 const entrySource = readFileSync('src/main.jsx', 'utf8');
+const emailFunctionSource = readFileSync('supabase/functions/send-email/index.ts', 'utf8');
 
 describe('production boundary', () => {
   it('allows demo mode only in a development build', () => {
@@ -26,5 +27,20 @@ describe('production boundary', () => {
     expect(applicationSource).not.toContain('pro-0000-0000-0000-000000000001');
     expect(applicationSource).not.toContain('Dr. Martin Dubois');
     expect(applicationSource).not.toContain('Cabinet Moreau');
+  });
+
+  it('keeps health details and mission identifiers out of transactional emails', () => {
+    expect(emailFunctionSource).not.toContain('${mission.care_type}');
+    expect(emailFunctionSource).not.toContain('${mission.scheduled_date}');
+    expect(emailFunctionSource).not.toContain('${mission.scheduled_time}');
+    expect(emailFunctionSource).not.toContain('/mission/${mission.id}');
+    expect(emailFunctionSource).toContain('votre espace sécurisé Medilio');
+  });
+
+  it('checks origin and authentication before exposing provider configuration', () => {
+    expect(emailFunctionSource.indexOf("Origine non autorisée."))
+      .toBeLessThan(emailFunctionSource.indexOf("request.method === 'OPTIONS'"));
+    expect(emailFunctionSource.indexOf("Authentification requise."))
+      .toBeLessThan(emailFunctionSource.indexOf("Service email non configuré."));
   });
 });
