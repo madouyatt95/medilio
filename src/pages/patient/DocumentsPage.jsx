@@ -5,8 +5,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
 import documentService from '../../services/documentService';
-import { ArrowLeft, Folder, FileText, Download, Eye, ExternalLink, Calendar } from 'lucide-react';
+import { ArrowLeft, Folder, FileText, Eye, Calendar } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
+import { LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 
 export default function DocumentsPage() {
   const { user } = useAuth();
@@ -14,12 +16,16 @@ export default function DocumentsPage() {
   const { showToast } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     async function load() {
       if (!user) return;
       try {
-        const missions = await missionService.getByPatient(user.id);
+        setLoading(true);
+        setLoadError('');
+        const missions = await withTimeout(missionService.getByPatient(user.id));
         const docsList = [];
         
         missions.forEach(m => {
@@ -30,7 +36,7 @@ export default function DocumentsPage() {
                 missionId: m.id,
                 missionDate: m.scheduledDate,
                 missionType: m.careType,
-                proName: m.assignedProName || 'Cabinet Moreau'
+                proName: m.assignedProName || 'Professionnel à confirmer'
               });
             });
           }
@@ -41,13 +47,14 @@ export default function DocumentsPage() {
         setDocuments(docsList);
       } catch (err) {
         console.error("Error loading documents:", err);
+        setLoadError(err.message || 'Impossible de charger vos documents.');
         showToast("Impossible de charger vos documents", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, showToast, reloadKey]);
 
   const handleView = async (doc) => {
     try {
@@ -57,7 +64,7 @@ export default function DocumentsPage() {
       } else {
         showToast("Impossible de charger l'aperçu du document", "error");
       }
-    } catch (err) {
+    } catch {
       showToast("Erreur lors de l'ouverture", "error");
     }
   };
@@ -103,9 +110,13 @@ export default function DocumentsPage() {
 
       {/* ── Documents list ── */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <div className="animate-spin" style={{ width: '28px', height: '28px', border: '3px solid #E2E8F0', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
-        </div>
+        <LoadingState compact label="Chargement de vos documents…" />
+      ) : loadError ? (
+        <LoadErrorState
+          title="Documents indisponibles"
+          message={loadError}
+          onRetry={() => setReloadKey(key => key + 1)}
+        />
       ) : documents.length === 0 ? (
         <div className="empty-state" style={{ background: 'white', padding: '48px 16px', border: '1px solid var(--border-color)', borderRadius: '24px', textAlign: 'center' }}>
           <div className="empty-state-icon" style={{ background: 'rgba(37, 99, 235, 0.05)', color: 'var(--color-primary)', width: '64px', height: '64px', margin: '0 auto 16px auto', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

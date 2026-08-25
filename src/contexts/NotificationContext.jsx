@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import notificationService from '../services/notificationService';
 import { useAuth } from './AuthContext';
+import { isDemoMode } from '../config/runtime';
 
 const NotificationContext = createContext(null);
 
@@ -23,62 +24,56 @@ export function NotificationProvider({ children }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     if (!user) return;
-    
-    const newNotifs = notificationService.getByUser(user.id);
-    
-    setNotifications(prev => {
-      // Avoid infinite loop: if content is same, don't update state
-      if (prev.length === newNotifs.length && (prev.length === 0 || prev[0].id === newNotifs[0].id)) {
-        return prev;
-      }
-
-      // Detect new unread notification for toast
-      if (prev.length > 0 && newNotifs.length > prev.length) {
-        const latest = newNotifs[0];
-        if (!latest.read) {
-          // Trigger toast safely
-          setTimeout(() => {
-            showToast(`${latest.title}: ${latest.message}`, 'info');
-          }, 0);
+    try {
+      const newNotifs = await notificationService.getByUser(user.id);
+      setNotifications(prev => {
+        if (prev.length === newNotifs.length && (prev.length === 0 || prev[0].id === newNotifs[0].id)) {
+          return prev;
         }
-      }
-      
-      return newNotifs;
-    });
+        if (prev.length > 0 && newNotifs.length > prev.length && !newNotifs[0].read) {
+          setTimeout(() => showToast(`${newNotifs[0].title}: ${newNotifs[0].message}`, 'info'), 0);
+        }
+        return newNotifs;
+      });
+    } catch (error) {
+      console.error('Notifications indisponibles', error);
+    }
   }, [user, showToast]);
 
   useEffect(() => {
     if (user) {
-      refresh();
+      void refresh();
     } else {
       setNotifications([]);
     }
   }, [user, refresh]);
 
-  // Poll for updates in demo mode
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(refresh, 5000);
-    return () => clearInterval(interval);
+    if (isDemoMode) {
+      const interval = setInterval(refresh, 5000);
+      return () => clearInterval(interval);
+    }
+    return notificationService.subscribeToUser(user.id, () => void refresh());
   }, [user, refresh]);
 
-  const addNotification = useCallback(({ type, title, message, link }) => {
+  const addNotification = useCallback(async ({ type, title, message, link }) => {
     if (!user) return;
-    notificationService.create({ userId: user.id, type, title, message, link });
-    refresh();
+    await notificationService.create({ userId: user.id, type, title, message, link });
+    await refresh();
   }, [user, refresh]);
 
-  const markAsRead = useCallback((id) => {
-    notificationService.markAsRead(id);
-    refresh();
+  const markAsRead = useCallback(async (id) => {
+    await notificationService.markAsRead(id);
+    await refresh();
   }, [refresh]);
 
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    notificationService.markAllAsRead(user.id);
-    refresh();
+    await notificationService.markAllAsRead(user.id);
+    await refresh();
   }, [user, refresh]);
 
   const unreadCount = notifications.filter(n => !n.read).length;

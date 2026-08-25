@@ -5,10 +5,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import missionService from '../../services/missionService';
 import geocodingService from '../../services/geocodingService';
 import { CARE_TYPES } from '../../utils/constants';
-import { getTodayStr, formatDate } from '../../utils/dateUtils';
+import { getTodayStr } from '../../utils/dateUtils';
 import InteractiveMap, { MARKER_COLORS } from '../../components/InteractiveMap';
 import { 
-  ArrowLeft, MapPin, Clock, Calendar, CheckCircle, Navigation, Play
+  ArrowLeft, MapPin, CheckCircle, Navigation, Play
 } from 'lucide-react';
 
 export default function ProTour() {
@@ -26,7 +26,7 @@ export default function ProTour() {
         const forDate = allMyMissions.filter(m => 
           m.scheduledDate === selectedDate && m.status !== 'cancelled'
         );
-        // "Optimize" by sorting by time (Logistics simulation)
+        // Present the day in chronological intervention order.
         forDate.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
         setMissions(forDate);
       }
@@ -54,7 +54,7 @@ export default function ProTour() {
       if (changed) setGeocodedMissions(newGeocoded);
     }
     if (missions.length > 0) geocode();
-  }, [missions]);
+  }, [missions, geocodedMissions]);
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 

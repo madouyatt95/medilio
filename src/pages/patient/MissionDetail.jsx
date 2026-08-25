@@ -10,10 +10,11 @@ import favoritesService from '../../services/favoritesService';
 import emailService from '../../services/emailService';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate, formatRelative } from '../../utils/dateUtils';
-import { RatingDisplay, RatingModal, DocumentUpload } from '../../components/SharedComponents';
+import { RatingDisplay, RatingModal, DocumentUpload, LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 import {
   ArrowLeft, MapPin, Calendar, Clock, User, FileText,
-  CheckCircle, X, Users, MessageCircle, Heart, Star, Send
+  CheckCircle, X, Users, MessageCircle, Heart, Star
 } from 'lucide-react';
 
 export default function PatientMissionDetail() {
@@ -27,42 +28,76 @@ export default function PatientMissionDetail() {
   const [existingRating, setExistingRating] = useState(null);
   const [favorites, setFavorites] = useState({});
   const [proRatings, setProRatings] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
-      const m = await missionService.getById(id);
-      if (!m) return navigate('/patient/dashboard');
+      setLoading(true);
+      setLoadError('');
+
+      let m;
+      try {
+        m = await withTimeout(missionService.getById(id));
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message || 'Impossible de charger cette demande.');
+        return;
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+
+      if (!m) {
+        if (!cancelled) setLoadError('Cette demande est introuvable ou vous n’êtes pas autorisé à la consulter.');
+        return;
+      }
+      if (cancelled) return;
       setMission(m);
 
-      const allUsers = await authService.getAllUsers();
-      const userMap = {};
-      allUsers.forEach(u => { userMap[u.id] = u; });
-      setApplicantUsers(userMap);
+      try {
+        await withTimeout((async () => {
+          const professionalIds = [...new Set([
+            ...(m.applicants || []).map(applicant => applicant.proId),
+            m.assignedProId,
+          ].filter(Boolean))];
+          const professionals = await Promise.all(
+            professionalIds.map(proId => authService.getPublicProfessional(proId).catch(() => null))
+          );
+          const userMap = {};
+          professionals.filter(Boolean).forEach(profile => { userMap[profile.id] = profile; });
+          if (m.assignedProId) {
+            const assignedProfile = await authService.getProfile(m.assignedProId).catch(() => null);
+            if (assignedProfile) userMap[assignedProfile.id] = assignedProfile;
+          }
+          if (!cancelled) setApplicantUsers(userMap);
 
-      // Check rating
-      const rating = await ratingService.getByMission(id);
-      setExistingRating(rating);
+          const rating = await ratingService.getByMission(id);
+          if (!cancelled) setExistingRating(rating);
 
-      // Load pro ratings for applicants
-      const rMap = {};
-      for (const app of (m.applicants || [])) {
-        rMap[app.proId] = await ratingService.getProAverageRating(app.proId);
-      }
-      if (m.assignedProId) {
-        rMap[m.assignedProId] = await ratingService.getProAverageRating(m.assignedProId);
-      }
-      setProRatings(rMap);
+          const ratingIds = [...new Set([
+            ...(m.applicants || []).map(applicant => applicant.proId),
+            m.assignedProId,
+          ].filter(Boolean))];
+          const ratingEntries = await Promise.all(ratingIds.map(async proId => [
+            proId,
+            await ratingService.getProAverageRating(proId),
+          ]));
+          if (!cancelled) setProRatings(Object.fromEntries(ratingEntries));
 
-      // Load favorites
-      if (user) {
-        const favIds = await favoritesService.getFavoriteProIds(user.id);
-        const favMap = {};
-        favIds.forEach(fid => { favMap[fid] = true; });
-        setFavorites(favMap);
+          if (user?.role === 'patient') {
+            const favIds = await favoritesService.getFavoriteProIds(user.id);
+            if (!cancelled) setFavorites(Object.fromEntries(favIds.map(favoriteId => [favoriteId, true])));
+          }
+        })());
+      } catch (error) {
+        console.warn('Informations complémentaires indisponibles', error);
       }
     }
-    loadData();
-  }, [id, navigate, user]);
+    void loadData();
+    return () => { cancelled = true; };
+  }, [id, user, reloadKey]);
 
   // Prompt rating automatically if mission completed and not rated
   useEffect(() => {
@@ -70,9 +105,19 @@ export default function PatientMissionDetail() {
       const timer = setTimeout(() => setShowRating(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [mission?.status, existingRating, mission?.assignedProId]);
+  }, [mission, existingRating]);
 
-  if (!mission) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
+  if (loading) return <LoadingState label="Chargement de la demande…" />;
+  if (loadError || !mission) {
+    return (
+      <LoadErrorState
+        title="Demande inaccessible"
+        message={loadError || 'Cette demande est introuvable.'}
+        onBack={() => navigate('/patient/dashboard')}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
@@ -82,15 +127,9 @@ export default function PatientMissionDetail() {
     showToast('Professionnel accepté !', 'success');
 
     // Send email notification to the accepted pro
-    const pro = applicantUsers[proId];
-    if (pro?.email) {
-      emailService.notifyMissionAccepted({
-        proEmail: pro.email,
-        mission: updated,
-        careTypeLabel: getCareLabel(updated.careType),
-        patientName: `${user?.firstName} ${user?.lastName}`,
-      });
-    }
+    void emailService.notifyMissionAccepted({ mission: updated }).catch(() => {
+      showToast('Mission affectée, mais l’email de confirmation n’a pas pu être envoyé.', 'info');
+    });
   };
 
   const handleReject = async (proId) => {
@@ -234,10 +273,10 @@ export default function PatientMissionDetail() {
                 </div>
                 {proRating && <RatingDisplay average={proRating.average} count={proRating.count} />}
               </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => toggleFavorite(assignedPro.id)}
+              {user?.role === 'patient' && <button className="btn btn-ghost btn-icon" onClick={() => toggleFavorite(assignedPro.id)}
                 style={{ color: favorites[assignedPro.id] ? '#EF4444' : 'var(--text-tertiary)' }}>
                 <Heart size={20} fill={favorites[assignedPro.id] ? '#EF4444' : 'none'} />
-              </button>
+              </button>}
             </div>
             <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)' }}>
               📞 {assignedPro.phone}
@@ -287,10 +326,10 @@ export default function PatientMissionDetail() {
                 <div className="applicant-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <span className="applicant-name">{pro.firstName} {pro.lastName}</span>
-                    <button className="btn btn-ghost" style={{ padding: 2, color: favorites[app.proId] ? '#EF4444' : 'var(--text-tertiary)' }}
+                    {user?.role === 'patient' && <button className="btn btn-ghost" style={{ padding: 2, color: favorites[app.proId] ? '#EF4444' : 'var(--text-tertiary)' }}
                       onClick={(e) => { e.stopPropagation(); toggleFavorite(app.proId); }}>
                       <Heart size={14} fill={favorites[app.proId] ? '#EF4444' : 'none'} />
-                    </button>
+                    </button>}
                   </div>
                   <div className="applicant-specialty">{pro.professionalInfo?.specialties?.join(', ')}</div>
                   {proR.count > 0 && <RatingDisplay average={proR.average} count={proR.count} size={12} />}
@@ -318,7 +357,7 @@ export default function PatientMissionDetail() {
           <Users size={32} style={{ color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)' }} />
           <div style={{ fontWeight: 600, marginBottom: 4 }}>En attente de candidatures</div>
           <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)' }}>
-            Les professionnels près de chez vous seront notifiés.
+            La mission est visible par les professionnels vérifiés de votre secteur.
           </div>
         </div>
       )}

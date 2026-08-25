@@ -1,6 +1,9 @@
 // ── Mission Service (Hybrid Supabase/Local Demo) ──
 import supabase from '../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
+import { assertBackendConfigured, isDemoMode } from '../config/runtime';
 import storageService from './storageService';
+import { buildRecurringDates } from '../utils/missionDates';
 
 export const missionService = {
   // ── Helper: Map DB row to app format ──
@@ -47,22 +50,26 @@ export const missionService = {
       dischargeMode: row.discharge_mode || false,
       dischargeDate: row.discharge_date || null,
       medicalNotes: row.medical_notes || '',
+      managedPatientId: row.managed_patient_id || null,
+      hasApplied: Boolean(row.has_applied),
     };
   },
 
   // ── Fetch full mission with applicants and notes ──
   async _fetchFull(missionRow) {
-    const { data: applicants } = await supabase
+    const { data: applicants, error: applicantsError } = await supabase
       .from('mission_applicants')
       .select('*')
       .eq('mission_id', missionRow.id);
 
-    const { data: careNotes } = await supabase
+    const { data: careNotes, error: careNotesError } = await supabase
       .from('mission_care_notes')
       .select('*')
       .eq('mission_id', missionRow.id)
       .order('created_at', { ascending: true });
 
+    if (applicantsError) throw new Error(applicantsError.message);
+    if (careNotesError) throw new Error(careNotesError.message);
     return this._mapMission(missionRow, applicants || [], careNotes || []);
   },
 
@@ -84,31 +91,11 @@ export const missionService = {
       }));
     }
 
-    // Calculate dates for recurrence
-    const dates = [missionData.scheduledDate];
-    if (missionData.recurrence && missionData.recurrence !== 'none' && missionData.recurrenceEndDate) {
-      let curr = new Date(missionData.scheduledDate);
-      const end = new Date(missionData.recurrenceEndDate);
-      // We limit to max 60 instances to prevent abuse (2 months of daily)
-      let count = 0;
-      
-      while (curr < end && count < 60) {
-        if (missionData.recurrence === 'daily') {
-          curr.setDate(curr.getDate() + 1);
-        } else if (missionData.recurrence === 'weekly') {
-          curr.setDate(curr.getDate() + 7);
-        } else if (missionData.recurrence === 'biweekly') {
-          curr.setDate(curr.getDate() + 14);
-        } else if (missionData.recurrence === 'monthly') {
-          curr.setMonth(curr.getMonth() + 1);
-        }
-        
-        if (curr <= end) {
-          dates.push(curr.toISOString().split('T')[0]);
-        }
-        count++;
-      }
-    }
+    const dates = buildRecurringDates(
+      missionData.scheduledDate,
+      missionData.recurrence || 'none',
+      missionData.recurrenceEndDate || null,
+    );
 
     const inserts = dates.map(date => ({
       patient_id: missionData.patientId,
@@ -130,27 +117,13 @@ export const missionService = {
       recurrence_end_date: missionData.recurrenceEndDate || null,
       documents: uploadedDocs,
       created_by_establishment_id: missionData.createdByEstablishmentId || null,
+      managed_patient_id: missionData.managedPatientId || null,
       discharge_mode: missionData.dischargeMode || false,
       discharge_date: missionData.dischargeDate || null,
       medical_notes: missionData.medicalNotes || '',
     }));
 
-    // Try Supabase first, fallback to local storage if DB schema is incomplete
-    try {
-      const { data, error } = await supabase
-        .from('missions')
-        .insert(inserts)
-        .select();
-
-      if (error) throw error;
-      
-      // Return the very first mission created to navigate the user
-      return this._mapMission(data[0]);
-    } catch (dbError) {
-      console.warn('Supabase insert failed, saving locally:', dbError.message);
-      
-      // Fallback: save to local demo storage
-      const { v4: uuidv4 } = await import('uuid');
+    if (isDemoMode) {
       const localMission = {
         id: uuidv4(),
         patientId: missionData.patientId,
@@ -179,116 +152,88 @@ export const missionService = {
         dischargeMode: missionData.dischargeMode || false,
         dischargeDate: missionData.dischargeDate || null,
         medicalNotes: missionData.medicalNotes || '',
+        managedPatientId: missionData.managedPatientId || null,
       };
 
       const existing = storageService.getMissions();
       storageService.setMissions([localMission, ...existing]);
       return localMission;
     }
+
+    assertBackendConfigured();
+    const { data, error } = await supabase.from('missions').insert(inserts).select();
+    if (error) throw new Error(error.message);
+    return this._mapMission(data[0]);
   },
 
   async getAll() {
-    // ── Local Demo Missions ──
-    const localMissions = storageService.getMissions();
-
-    // ── Supabase Missions ──
-    try {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const remoteMissions = await Promise.all((data || []).map(m => this._fetchFull(m)));
-      
-      // Merge: Demo missions usually have different UUIDs than Supabase ones
-      return [...localMissions, ...remoteMissions].sort((a, b) => 
-        new Date(b.createdAt) - new Date(a.createdAt)
-      );
-    } catch (err) {
-      console.warn("Supabase fetch failed in getAll, returning locals only", err);
-      return localMissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (isDemoMode) {
+      return storageService.getMissions().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
+    assertBackendConfigured();
+    const { data, error } = await supabase.from('missions').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return Promise.all((data || []).map(mission => this._fetchFull(mission)));
   },
 
   async getById(id) {
-    const local = storageService.getMissions().find(m => m.id === id);
-    if (local) return local;
+    if (isDemoMode) return storageService.getMissions().find(mission => mission.id === id) || null;
 
     const { data, error } = await supabase
       .from('missions')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (error) return null;
-    return this._fetchFull(data);
+    if (error) throw new Error(error.message);
+    if (data) return this._fetchFull(data);
+
+    // A professional may inspect an open mission only through its redacted RPC.
+    const { data: available, error: availableError } = await supabase.rpc('list_available_missions');
+    if (availableError) return null;
+    const safeMission = (available || []).find(mission => mission.id === id);
+    if (!safeMission) return null;
+    return this._mapMission(safeMission, [], []);
   },
 
   async getByPatient(patientId) {
-    const locals = storageService.getMissions().filter(m => m.patientId === patientId);
-
-    try {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
-      return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } catch (err) {
-      console.warn("Supabase fetch failed, returning locals only", err);
-      return locals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
+    if (isDemoMode) return storageService.getMissions().filter(mission => mission.patientId === patientId);
+    const { data, error } = await supabase.from('missions').select('*')
+      .eq('patient_id', patientId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return Promise.all((data || []).map(mission => this._fetchFull(mission)));
   },
 
   async getByProfessional(proId) {
-    const locals = storageService.getMissions().filter(m => m.assignedProId === proId);
+    if (isDemoMode) return storageService.getMissions().filter(mission => mission.assignedProId === proId);
+    const { data, error } = await supabase.from('missions').select('*')
+      .eq('assigned_pro_id', proId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return Promise.all((data || []).map(mission => this._fetchFull(mission)));
+  },
 
-    try {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('assigned_pro_id', proId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
-      return [...locals, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } catch (err) {
-      console.warn("Supabase fetch failed, returning locals only", err);
-      return locals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  async getByEstablishment(establishmentId) {
+    if (isDemoMode) {
+      return storageService.getMissions().filter(mission => mission.createdByEstablishmentId === establishmentId);
     }
+    const { data, error } = await supabase.from('missions').select('*')
+      .eq('created_by_establishment_id', establishmentId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return Promise.all((data || []).map(mission => this._fetchFull(mission)));
   },
 
   async getOpenMissions() {
-    // ── Local Demo Missions ──
-    const localOpen = storageService.getMissions().filter(m => m.status === 'open');
-
-    // ── Supabase Missions ──
-    try {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('status', 'open')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      const remotes = await Promise.all((data || []).map(m => this._fetchFull(m)));
-      return [...localOpen, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } catch {
-      return localOpen;
-    }
+    if (isDemoMode) return storageService.getMissions().filter(mission => mission.status === 'open');
+    const { data, error } = await supabase.rpc('list_available_missions');
+    if (error) throw new Error(error.message);
+    return (data || []).map(row => this._mapMission(row, [], []));
   },
 
   async applyToMission(missionId, proId, message = '') {
-    // 1. Try Local Demo
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = missions[localIdx];
       if (mission.applicants?.some(a => a.proId === proId)) {
         throw new Error('Vous avez déjà postulé à cette mission');
@@ -302,7 +247,6 @@ export const missionService = {
       return mission;
     }
 
-    // 2. Supabase
     const { error } = await supabase
       .from('mission_applicants')
       .insert({
@@ -319,10 +263,10 @@ export const missionService = {
   },
 
   async acceptApplicant(missionId, proId) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = missions[localIdx];
       mission.assignedProId = proId;
       mission.status = 'assigned';
@@ -331,21 +275,20 @@ export const missionService = {
       return mission;
     }
 
-    // 2. Supabase
-    const { error } = await supabase
-      .from('missions')
-      .update({ assigned_pro_id: proId, status: 'assigned' })
-      .eq('id', missionId);
+    const { error } = await supabase.rpc('accept_mission_applicant', {
+      p_mission_id: missionId,
+      p_pro_id: proId,
+    });
 
     if (error) throw new Error(error.message);
     return this.getById(missionId);
   },
 
   async rejectApplicant(missionId, proId) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = missions[localIdx];
       mission.applicants = (mission.applicants || []).filter(a => a.proId !== proId);
       missions[localIdx] = mission;
@@ -353,22 +296,20 @@ export const missionService = {
       return mission;
     }
 
-    // 2. Supabase
-    const { error } = await supabase
-      .from('mission_applicants')
-      .delete()
-      .eq('mission_id', missionId)
-      .eq('pro_id', proId);
+    const { error } = await supabase.rpc('reject_mission_applicant', {
+      p_mission_id: missionId,
+      p_pro_id: proId,
+    });
 
     if (error) throw new Error(error.message);
     return this.getById(missionId);
   },
 
   async updateStatus(missionId, status) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = missions[localIdx];
       mission.status = status;
       if (status === 'completed') {
@@ -379,26 +320,20 @@ export const missionService = {
       return mission;
     }
 
-    // 2. Supabase
-    const updates = { status };
-    if (status === 'completed') {
-      updates.updated_at = new Date().toISOString();
-    }
-
-    const { error } = await supabase
-      .from('missions')
-      .update(updates)
-      .eq('id', missionId);
+    const { error } = await supabase.rpc('update_mission_status', {
+      p_mission_id: missionId,
+      p_status: status,
+    });
 
     if (error) throw new Error(error.message);
     return this.getById(missionId);
   },
 
   async addCareNote(missionId, proId, content) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = missions[localIdx];
       mission.careNotes = [
         ...(mission.careNotes || []),
@@ -423,10 +358,10 @@ export const missionService = {
   },
 
   async update(missionId, updates) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const localIdx = missions.findIndex(m => m.id === missionId);
-    if (localIdx !== -1) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const localIdx = missions.findIndex(m => m.id === missionId);
+      if (localIdx === -1) throw new Error('Mission introuvable.');
       const mission = { ...missions[localIdx], ...updates };
       if (updates.address) mission.address = { ...missions[localIdx].address, ...updates.address };
       if (updates.patientInfo) mission.patientInfo = { ...missions[localIdx].patientInfo, ...updates.patientInfo };
@@ -435,13 +370,11 @@ export const missionService = {
       return mission;
     }
 
-    // 2. Supabase
     const dbUpdates = {};
     if (updates.careType) dbUpdates.care_type = updates.careType;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.scheduledDate) dbUpdates.scheduled_date = updates.scheduledDate;
     if (updates.scheduledTime) dbUpdates.scheduled_time = updates.scheduledTime;
-    if (updates.status) dbUpdates.status = updates.status;
     if (updates.address) {
       dbUpdates.street = updates.address.street || '';
       dbUpdates.city = updates.address.city || '';
@@ -458,15 +391,14 @@ export const missionService = {
   },
 
   async delete(missionId) {
-    // 1. Local
-    const missions = storageService.getMissions();
-    const filtered = missions.filter(m => m.id !== missionId);
-    if (filtered.length !== missions.length) {
+    if (isDemoMode) {
+      const missions = storageService.getMissions();
+      const filtered = missions.filter(m => m.id !== missionId);
+      if (filtered.length === missions.length) throw new Error('Mission introuvable.');
       storageService.setMissions(filtered);
       return;
     }
 
-    // 2. Supabase
     const { error } = await supabase
       .from('missions')
       .delete()

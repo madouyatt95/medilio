@@ -1,7 +1,8 @@
 // ── Auth Context (Supabase) ──
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import authService from '../services/authService';
-import supabase from '../lib/supabase';
+import { runtimeConfigurationError } from '../config/runtime';
+import { withTimeout } from '../utils/async';
 
 const AuthContext = createContext(null);
 
@@ -13,13 +14,16 @@ export function AuthProvider({ children }) {
   // Check for existing session on mount
   useEffect(() => {
     let mounted = true;
+    let authGeneration = 0;
 
     async function initSession() {
       try {
-        const profile = await authService.getCurrentUser();
+        const profile = await withTimeout(authService.getCurrentUser(), {
+          message: 'La vérification de session a expiré.',
+        });
         if (mounted) setUser(profile);
-      } catch {
-        // No session
+      } catch (sessionError) {
+        console.warn('Session Medilio indisponible', sessionError);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -28,11 +32,21 @@ export function AuthProvider({ children }) {
     initSession();
 
     // Listen for auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const { data: { subscription } } = authService.onAuthStateChange(
+      (event, session) => {
+        authGeneration += 1;
+        const generation = authGeneration;
         if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await authService.getProfile(session.user.id);
-          if (mounted) setUser(profile);
+          queueMicrotask(async () => {
+            try {
+              const profile = await withTimeout(authService.getProfile(session.user.id), {
+                message: 'Le profil met trop de temps à répondre.',
+              });
+              if (mounted && generation === authGeneration) setUser(profile);
+            } catch (profileError) {
+              console.error('Impossible de charger le profil après connexion', profileError);
+            }
+          });
         } else if (event === 'SIGNED_OUT') {
           if (mounted) setUser(null);
         }
@@ -49,7 +63,9 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError('');
     try {
-      const u = await authService.login(email, password);
+      const u = await withTimeout(authService.login(email, password), {
+        message: 'La connexion met trop de temps à répondre. Vérifiez votre réseau puis réessayez.',
+      });
       setUser(u);
       return u;
     } catch (err) {
@@ -64,9 +80,11 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError('');
     try {
-      const u = await authService.register(data);
-      setUser(u);
-      return u;
+      const result = await withTimeout(authService.register(data), {
+        message: 'La création du compte met trop de temps à répondre. Réessayez dans un instant.',
+      });
+      if (result.profile) setUser(result.profile);
+      return result;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -77,7 +95,10 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      await authService.logout();
+      await withTimeout(authService.logout(), {
+        timeout: 8_000,
+        message: 'La déconnexion distante a expiré.',
+      });
     } catch (err) {
       console.warn("Logout error:", err);
     } finally {
@@ -87,7 +108,7 @@ export function AuthProvider({ children }) {
 
   const updateProfile = useCallback(async (updates) => {
     if (!user) return;
-    const updated = await authService.updateProfile(user.id, updates);
+    const updated = await withTimeout(authService.updateProfile(user.id, updates));
     setUser(updated);
     return updated;
   }, [user]);
@@ -117,6 +138,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, loading, error,
+      configurationError: runtimeConfigurationError,
       login, register, logout, updateProfile, clearError,
       isAuthenticated: !!user,
       isPatient: user?.role === 'patient',

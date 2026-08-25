@@ -1,77 +1,70 @@
 import supabase from '../lib/supabase';
 import storageService from './storageService';
 import notificationService from './notificationService';
+import { isDemoMode } from '../config/runtime';
 
 export const chatService = {
   // Get or create a conversation for a mission
   async getConversation(missionId) {
-    // 1. Try Local Demo First
-    const localChats = storageService.getChats();
-    let localChat = localChats.find(c => c.missionId === missionId);
-    
-    if (localChat) {
-      return localChat;
-    }
-
-    // 2. Otherwise Supabase
-    try {
-      let { data: chat } = await supabase
-        .from('chats')
-        .select('*')
-        .eq('mission_id', missionId)
-        .single();
-
-      if (!chat) {
-        // Create one on Supabase (only if it's not a local mission ID)
-        // If it's a UUID v4 from demo data, Supabase might reject it depending on FKs.
-        // But if we are here, it means we didn't find it in local storage.
-        const { data: newChat, error } = await supabase
-          .from('chats')
-          .insert({ mission_id: missionId })
-          .select()
-          .single();
-
-        if (error) throw error;
-        chat = newChat;
-      }
-
-      const { data: messages } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('chat_id', chat.id)
-        .order('created_at', { ascending: true });
-
-      return {
-        id: chat.id,
-        missionId: chat.mission_id,
-        messages: (messages || []).map(m => ({
-          id: m.id,
-          senderId: m.sender_id,
-          senderName: m.sender_name,
-          content: m.content,
-          createdAt: m.created_at,
-          read: m.read,
-        })),
-        createdAt: chat.created_at,
-      };
-    } catch (err) {
-      // If Supabase fails (e.g. mission doesn't exist there), create a local chat
+    if (isDemoMode) {
+      const localChats = storageService.getChats();
+      const localChat = localChats.find(c => c.missionId === missionId);
+      if (localChat) return localChat;
       const newLocalChat = {
         id: `local_chat_${missionId}`,
         missionId,
         messages: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
       storageService.setChats([...localChats, newLocalChat]);
       return newLocalChat;
     }
+
+    let { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('mission_id', missionId)
+      .maybeSingle();
+    if (chatError) throw new Error(chatError.message);
+
+    if (!chat) {
+      const { data: newChat, error } = await supabase
+        .from('chats')
+        .insert({ mission_id: missionId })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      chat = newChat;
+    }
+
+    const { data: messages, error: messagesError } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('chat_id', chat.id)
+      .order('created_at', { ascending: true });
+    if (messagesError) throw new Error(messagesError.message);
+
+    return {
+      id: chat.id,
+      missionId: chat.mission_id,
+      messages: (messages || []).map(m => ({
+        id: m.id,
+        senderId: m.sender_id,
+        senderName: m.sender_name,
+        content: m.content,
+        createdAt: m.created_at,
+        read: m.read,
+      })),
+      createdAt: chat.created_at,
+    };
   },
 
   async sendMessage(missionId, senderId, senderName, content) {
     const convo = await this.getConversation(missionId);
 
     // 1. Handle Local Chat
-    if (convo.id.startsWith('local_chat_')) {
+    if (isDemoMode && convo.id.startsWith('local_chat_')) {
       const localChats = storageService.getChats();
       const chatIdx = localChats.findIndex(c => c.id === convo.id);
       if (chatIdx !== -1) {
@@ -91,7 +84,7 @@ export const chatService = {
         if (mission) {
           const recipientId = mission.patientId === senderId ? mission.assignedProId : mission.patientId;
           if (recipientId) {
-            notificationService.create({
+            void notificationService.create({
               userId: recipientId,
               type: 'message',
               title: `Message de ${senderName}`,
@@ -119,23 +112,6 @@ export const chatService = {
 
     if (error) throw new Error(error.message);
 
-    // Notify recipient via Supabase (if possible) or just standard notif
-    const mission = await supabase.from('missions').select('*').eq('id', missionId).single();
-    if (mission.data) {
-      const recipientId = mission.data.patient_id === senderId ? mission.data.assigned_pro_id : mission.data.patient_id;
-      if (recipientId) {
-        // In a real app, this would be handled by a Supabase trigger or Edge Function
-        // For now, we simulate it
-        notificationService.create({
-          userId: recipientId,
-          type: 'message',
-          title: `Message de ${senderName}`,
-          message: content.length > 40 ? content.substring(0, 40) + '...' : content,
-          link: `/chat/${missionId}`
-        });
-      }
-    }
-
     return {
       id: data.id,
       senderId: data.sender_id,
@@ -155,7 +131,7 @@ export const chatService = {
     const convo = await this.getConversation(missionId);
 
     // 1. Local
-    if (convo.id.startsWith('local_chat_')) {
+    if (isDemoMode && convo.id.startsWith('local_chat_')) {
       const localChats = storageService.getChats();
       const chatIdx = localChats.findIndex(c => c.id === convo.id);
       if (chatIdx !== -1) {
@@ -173,10 +149,11 @@ export const chatService = {
       .map(m => m.id);
 
     if (unreadIds.length > 0) {
-      await supabase
+      const { error } = await supabase
         .from('chat_messages')
         .update({ read: true })
         .in('id', unreadIds);
+      if (error) throw new Error(error.message);
     }
   },
 
@@ -186,18 +163,70 @@ export const chatService = {
   },
 
   async getUserConversations(userId, missions) {
-    const results = [];
+    if (!missions?.length) return [];
 
-    for (const m of missions) {
-      try {
-        const convo = await this.getConversation(m.id);
-        const unread = convo.messages.filter(msg => msg.senderId !== userId && !msg.read).length;
-        const lastMessage = convo.messages[convo.messages.length - 1] || null;
-        results.push({ ...convo, mission: m, unreadCount: unread, lastMessage });
-      } catch (err) {
-        console.error("Error loading conversation for mission", m.id, err);
+    let chats;
+    let messages;
+
+    if (isDemoMode) {
+      chats = storageService.getChats()
+        .filter(chat => missions.some(mission => mission.id === chat.missionId));
+      messages = chats.flatMap(chat => (chat.messages || []).map(message => ({
+        ...message,
+        chatId: chat.id,
+      })));
+    } else {
+      const missionIds = missions.map(mission => mission.id);
+      const { data: chatRows, error: chatError } = await supabase
+        .from('chats')
+        .select('*')
+        .in('mission_id', missionIds);
+      if (chatError) throw new Error(chatError.message);
+
+      chats = (chatRows || []).map(chat => ({
+        id: chat.id,
+        missionId: chat.mission_id,
+        createdAt: chat.created_at,
+      }));
+
+      const chatIds = chats.map(chat => chat.id);
+      if (chatIds.length > 0) {
+        const { data: messageRows, error: messagesError } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .in('chat_id', chatIds)
+          .order('created_at', { ascending: true });
+        if (messagesError) throw new Error(messagesError.message);
+
+        messages = (messageRows || []).map(message => ({
+          id: message.id,
+          chatId: message.chat_id,
+          senderId: message.sender_id,
+          senderName: message.sender_name,
+          content: message.content,
+          createdAt: message.created_at,
+          read: message.read,
+        }));
       }
     }
+
+    const chatByMission = new Map(chats.map(chat => [chat.missionId, chat]));
+    const results = missions.map(mission => {
+      const chat = chatByMission.get(mission.id);
+      const conversationMessages = chat
+        ? messages.filter(message => message.chatId === chat.id)
+        : [];
+      const lastMessage = conversationMessages[conversationMessages.length - 1] || null;
+      return {
+        id: chat?.id || `mission_${mission.id}`,
+        missionId: mission.id,
+        messages: conversationMessages,
+        createdAt: chat?.createdAt || mission.createdAt,
+        mission,
+        unreadCount: conversationMessages.filter(message => message.senderId !== userId && !message.read).length,
+        lastMessage,
+      };
+    });
 
     return results
       .filter(c => c.messages.length > 0 || c.mission.assignedProId)
@@ -210,7 +239,7 @@ export const chatService = {
 
   // Subscribe to real-time new messages
   subscribeToMessages(chatId, onNewMessage) {
-    if (chatId.startsWith('local_chat_')) {
+    if (isDemoMode && chatId.startsWith('local_chat_')) {
       // For local chat, we use a simple interval or custom event
       // For demo, we can just poll or skip real-time as it's the same browser
       const interval = setInterval(() => {

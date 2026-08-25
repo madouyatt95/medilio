@@ -5,9 +5,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
 import authService from '../../services/authService';
+import emailService from '../../services/emailService';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate, formatRelative } from '../../utils/dateUtils';
-import { DocumentUpload } from '../../components/SharedComponents';
+import { DocumentUpload, LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 import {
   ArrowLeft, MapPin, Calendar, Clock, User, Activity,
   FileText, CheckCircle, Send, MessageCircle, Plus
@@ -24,22 +26,50 @@ export default function ProMissionDetail() {
   const [patient, setPatient] = useState(null);
   const [applyMessage, setApplyMessage] = useState('');
   const [isApplying, setIsApplying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
-      const m = await missionService.getById(id);
-      if (!m) return navigate('/pro/dashboard');
-      setMission(m);
+      setLoading(true);
+      setLoadError('');
+      try {
+        const m = await withTimeout(missionService.getById(id));
+        if (!m) {
+          if (!cancelled) setLoadError('Cette mission est introuvable ou vous n’êtes pas autorisé à la consulter.');
+          return;
+        }
+        if (cancelled) return;
+        setMission(m);
 
-      // Load patient info
-      const allUsers = await authService.getAllUsers();
-      const p = allUsers.find(u => u.id === m.patientId);
-      setPatient(p || null);
+        if (m.patientId && m.assignedProId === user?.id) {
+          const patientProfile = await withTimeout(authService.getProfile(m.patientId));
+          if (!cancelled) setPatient(patientProfile);
+        }
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message || 'Impossible de charger cette mission.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    loadData();
-  }, [id, navigate]);
+    void loadData();
+    return () => { cancelled = true; };
+  }, [id, user?.id, reloadKey]);
 
-  if (!mission) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
+  if (loading) return <LoadingState label="Chargement de la mission…" />;
+  if (loadError || !mission) {
+    return (
+      <LoadErrorState
+        title="Mission inaccessible"
+        message={loadError || 'Cette mission est introuvable.'}
+        onBack={() => navigate('/pro/dashboard')}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
   const isAssigned = mission.assignedProId === user?.id;
@@ -62,7 +92,10 @@ export default function ProMissionDetail() {
   const handleApply = async () => {
     try {
       setIsApplying(true);
-      await missionService.applyToMission(mission.id, user.id, applyMessage);
+      const updatedMission = await missionService.applyToMission(mission.id, user.id, applyMessage);
+      void emailService.notifyNewApplication({ mission: updatedMission }).catch(() => {
+        showToast('Candidature enregistrée, mais l’email n’a pas pu être envoyé.', 'info');
+      });
       showToast('Candidature envoyée avec succès !', 'success');
       const updated = await missionService.getById(id);
       setMission(updated);
@@ -225,7 +258,7 @@ export default function ProMissionDetail() {
 
       {mission.status === 'open' && (
         <div className="section" style={{ marginTop: 'var(--space-4)' }}>
-          {mission.applicants?.some(a => a.proId === user?.id) ? (
+          {mission.hasApplied || mission.applicants?.some(a => a.proId === user?.id) ? (
             <div className="card" style={{ textAlign: 'center', background: 'var(--bg-input)', border: '1px dashed var(--border-color)' }}>
               <div style={{ color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <CheckCircle size={20} /> Candidature envoyée

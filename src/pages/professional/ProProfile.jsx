@@ -8,8 +8,8 @@ import ratingService from '../../services/ratingService';
 import { RatingDisplay } from '../../components/SharedComponents';
 import {
   User, MapPin, Clock, Stethoscope, Save, LogOut,
-  CheckCircle, Shield, Edit3, Star, Award, Briefcase, Plus, X,
-  TrendingUp, Download, CreditCard, ChevronRight, CheckSquare
+  Shield, Edit3, Star, Award, Briefcase, Plus,
+  TrendingUp, CheckSquare
 } from 'lucide-react';
 import AvatarUpload from '../../components/AvatarUpload';
 import { formatRelative, formatDate } from '../../utils/dateUtils';
@@ -111,6 +111,27 @@ export default function ProProfile() {
   ];
 
   const SPEC_ICONS = ['💊', '🩺', '🫀', '🦴', '👶', '🧠'];
+  const completedDurationHours = completedMissions.reduce(
+    (sum, mission) => sum + (Number(mission.estimatedDuration) || 0) / 60,
+    0,
+  );
+  const averageHourlyEstimate = completedDurationHours > 0
+    ? Math.round(totalEarnings / completedDurationHours)
+    : 0;
+  const weeklyEstimates = Array.from({ length: 4 }, (_, index) => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    end.setDate(end.getDate() - ((3 - index) * 7));
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    const value = completedMissions.reduce((sum, mission) => {
+      const date = new Date(`${mission.scheduledDate}T12:00:00`);
+      return date >= start && date <= end ? sum + (Number(mission.estimatedCost) || 0) : sum;
+    }, 0);
+    return { label: `S${index + 1}`, value };
+  });
+  const maxWeeklyEstimate = Math.max(...weeklyEstimates.map(item => item.value), 1);
 
   return (
     <div className="page-container animate-fadeIn" style={{ background: 'transparent', paddingBottom: 'calc(var(--bottom-nav-height) + 40px)' }}>
@@ -183,8 +204,8 @@ export default function ProProfile() {
           }}>
             {[
               { icon: <Briefcase size={18} />, value: completedMissions.length, label: 'Interventions', color: 'var(--color-primary)', bg: 'rgba(37, 99, 235, 0.08)' },
-              { icon: <Star size={18} />, value: stats.average || '4,5', label: 'Note', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)' },
-              { icon: <Award size={18} />, value: `${totalEarnings}€`, label: 'Revenus', color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.08)' },
+              { icon: <Star size={18} />, value: stats.count ? stats.average : '—', label: 'Note', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)' },
+              { icon: <Award size={18} />, value: `${totalEarnings}€`, label: 'Montant estimé', color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.08)' },
             ].map((stat, i) => (
               <div key={i} style={{
                 background: 'white', borderRadius: 'var(--radius-xl)',
@@ -435,34 +456,25 @@ export default function ProProfile() {
             <div style={{ position: 'absolute', right: '-10%', bottom: '-20%', width: '150px', height: '150px', background: 'rgba(255,255,255,0.08)', borderRadius: '50%', pointerEvents: 'none' }} />
             
             <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.9, display: 'block', marginBottom: '8px' }}>
-              Solde disponible ce mois
+              Montant estimé des missions terminées
             </span>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px' }}>
               <span style={{ fontSize: '36px', fontWeight: 800 }}>{totalEarnings} €</span>
-              <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '99px', fontWeight: 700 }}>+12% vs avril</span>
             </div>
-
-            {/* Monthly goal progress bar */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 700, marginBottom: '6px', opacity: 0.9 }}>
-                <span>Objectif mensuel : 3000 €</span>
-                <span>{Math.round((totalEarnings / 3000) * 100)}%</span>
-              </div>
-              <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '99px', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min((totalEarnings / 3000) * 100, 100)}%`, height: '100%', background: 'white', borderRadius: '99px' }} />
-              </div>
-            </div>
+            <p style={{ margin: 0, fontSize: '11px', opacity: 0.9 }}>
+              Indication calculée depuis les missions, sans encaissement ni statut de paiement.
+            </p>
           </div>
 
           {/* Quick billing stats indicators */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: 'var(--space-6)' }}>
             <div className="glass-card" style={{ padding: '16px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', background: 'white' }}>
-              <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tarif horaire moyen</span>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>45 € / h</span>
+              <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Taux horaire estimé</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{averageHourlyEstimate || '—'} {averageHourlyEstimate ? '€ / h' : ''}</span>
             </div>
             <div className="glass-card" style={{ padding: '16px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', background: 'white' }}>
-              <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Factures payées</span>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{completedMissions.length} / {completedMissions.length}</span>
+              <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Missions terminées</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>{completedMissions.length}</span>
             </div>
           </div>
 
@@ -474,18 +486,13 @@ export default function ProProfile() {
             </div>
             {/* SVG custom bar graph */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '120px', padding: '10px 0' }}>
-              {[
-                { label: 'S1', val: 320, active: false },
-                { label: 'S2', val: 510, active: false },
-                { label: 'S3', val: 420, active: false },
-                { label: 'S4', val: 680, active: true },
-              ].map((item, i) => (
+              {weeklyEstimates.map((item, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: item.active ? 'var(--color-success)' : 'var(--text-tertiary)', marginBottom: '6px' }}>{item.val}€</div>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: i === weeklyEstimates.length - 1 ? 'var(--color-success)' : 'var(--text-tertiary)', marginBottom: '6px' }}>{item.value}€</div>
                   <div style={{
                     width: '32px',
-                    height: `${(item.val / 700) * 80}px`,
-                    background: item.active ? 'linear-gradient(180deg, #10B981 0%, #34D399 100%)' : 'var(--color-primary-lighter)',
+                    height: `${Math.max((item.value / maxWeeklyEstimate) * 80, 2)}px`,
+                    background: i === weeklyEstimates.length - 1 ? 'linear-gradient(180deg, #10B981 0%, #34D399 100%)' : 'var(--color-primary-lighter)',
                     borderRadius: '6px 6px 0 0',
                     transition: 'height 0.4s ease'
                   }} />
@@ -504,7 +511,7 @@ export default function ProProfile() {
             {completedMissions.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '24px 0' }}>
                 <CheckSquare size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
-                <p style={{ fontSize: 'var(--font-xs)', fontWeight: 600 }}>Aucune intervention payée pour le moment</p>
+                <p style={{ fontSize: 'var(--font-xs)', fontWeight: 600 }}>Aucune intervention terminée pour le moment</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -520,10 +527,10 @@ export default function ProProfile() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ fontSize: 'var(--font-sm)', fontWeight: 800, color: 'var(--color-success)', display: 'block' }}>
-                        +{mission.estimatedCost} €
+                        {mission.estimatedCost || 0} € estimés
                       </span>
                       <span style={{ fontSize: '9px', background: 'rgba(16, 185, 129, 0.08)', color: 'var(--color-success)', padding: '2px 6px', borderRadius: '99px', fontWeight: 700 }}>
-                        Payé
+                        Terminé
                       </span>
                     </div>
                   </div>
@@ -532,47 +539,8 @@ export default function ProProfile() {
             )}
           </div>
 
-          {/* Quick Utility Options Card */}
-          <div className="glass-card animate-fadeInUp" style={{ padding: '20px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', background: 'white', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', justifyContent: 'space-between', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Download size={18} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-primary)' }}>Télécharger le récapitulatif annuel</span>
-              </div>
-              <ChevronRight size={16} style={{ color: 'var(--text-tertiary)' }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', justifyContent: 'space-between', cursor: 'pointer', borderTop: '1px solid var(--border-light)', paddingTop: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CreditCard size={18} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-primary)' }}>Modifier mes coordonnées bancaires (RIB)</span>
-              </div>
-              <ChevronRight size={16} style={{ color: 'var(--text-tertiary)' }} />
-            </div>
-          </div>
-
         </div>
       )}
-
-      {/* Developer Options and Logout Footer */}
-      <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-4)', borderTop: '1px solid var(--border-color)' }}>
-        <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textAlign: 'center' }}>
-          Outils Développeur
-        </p>
-        <button 
-          className="btn btn-sm btn-secondary btn-block" 
-          style={{ background: 'white', color: 'var(--text-secondary)' }}
-          onClick={() => {
-            if (window.confirm("Réinitialiser toutes les données vers le scénario de démonstration ?")) {
-              import('../../utils/demoData').then(m => {
-                m.resetDemoData();
-                window.location.reload();
-              });
-            }
-          }}
-        >
-          Réinitialiser le scénario de démo
-        </button>
-      </div>
 
       <button className="btn btn-ghost btn-block" style={{ color: 'var(--color-danger)', marginTop: 'var(--space-4)' }}
         onClick={logout}>

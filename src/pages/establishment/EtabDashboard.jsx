@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import missionService from '../../services/missionService';
-import { CARE_TYPES, MISSION_STATUS_LABELS, MISSION_STATUS_COLORS } from '../../utils/constants';
+import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
+import { LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 import {
-  Building2, Plus, Users, ClipboardList, TrendingUp, Home,
-  ChevronRight, Activity, Calendar, ArrowUpRight, Clock, UserPlus
+  Building2, Plus, ClipboardList, Home, Activity
 } from 'lucide-react';
 
 export default function EtabDashboard() {
@@ -16,30 +17,28 @@ export default function EtabDashboard() {
   const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('active');
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const etabName = user?.establishmentInfo?.name || user?.firstName || 'Établissement';
   const etabType = user?.establishmentInfo?.type || '';
 
   useEffect(() => {
-    loadMissions();
-  }, [user]);
-
-  async function loadMissions() {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const all = await missionService.getAll();
-      // Filter missions created by this establishment
-      const etabMissions = all.filter(m =>
-        m.createdByEstablishmentId === user.id || m.patientId === user.id
-      );
-      setMissions(etabMissions);
-    } catch (err) {
-      console.error('Failed to load missions', err);
-    } finally {
-      setLoading(false);
+    async function loadMissions() {
+      if (!user) return;
+      setLoading(true);
+      setLoadError('');
+      try {
+        setMissions(await withTimeout(missionService.getByEstablishment(user.id)));
+      } catch (err) {
+        console.error('Failed to load missions', err);
+        setLoadError(err.message || 'Impossible de charger les missions de l’établissement.');
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    void loadMissions();
+  }, [user, reloadKey]);
 
   const activeMissions = missions.filter(m => ['open', 'assigned', 'in_progress'].includes(m.status));
   const completedMissions = missions.filter(m => m.status === 'completed');
@@ -69,10 +68,16 @@ export default function EtabDashboard() {
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
   if (loading) {
+    return <LoadingState label="Chargement des missions…" />;
+  }
+
+  if (loadError) {
     return (
-      <div className="page-container" style={{ display: 'flex', justifyContent: 'center', paddingTop: '40vh' }}>
-        <div className="spinner spinner-lg" />
-      </div>
+      <LoadErrorState
+        title="Tableau de bord indisponible"
+        message={loadError}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
     );
   }
 

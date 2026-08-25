@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
+import authService from '../../services/authService';
 import { CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
+import logoFallback from '../../assets/logo-medilio.png';
 import {
-  Plus, Calendar, CheckCircle, Clock, ChevronRight, ClipboardList,
-  MessageSquare, Folder, Heart, Activity, FileText, AlertTriangle, Droplet, Star
+  Calendar, ChevronRight, ClipboardList,
+  MessageSquare, Folder, Droplet, Star
 } from 'lucide-react';
 
 export default function PatientDashboard() {
@@ -16,18 +18,23 @@ export default function PatientDashboard() {
   const navigate = useNavigate();
   const { notifications } = useNotifications();
   const [missions, setMissions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [topProfessionals, setTopProfessionals] = useState([]);
 
   useEffect(() => {
     async function loadData() {
       try {
         if (user) {
-          setMissions(await missionService.getByPatient(user.id));
+          const [patientMissions, professionals] = await Promise.all([
+            missionService.getByPatient(user.id),
+            authService.getPublicProfessionals(),
+          ]);
+          setMissions(patientMissions);
+          setTopProfessionals(professionals
+            .sort((a, b) => b.professionalInfo.ratingAverage - a.professionalInfo.ratingAverage)
+            .slice(0, 3));
         }
       } catch (err) {
         console.error("Dashboard data load error:", err);
-      } finally {
-        setLoading(false);
       }
     }
     loadData();
@@ -44,37 +51,6 @@ export default function PatientDashboard() {
     navigate(`/patient/create-mission?careType=${careTypeId}`);
   };
 
-  // Demo Top-Rated Professionals List
-  const topProfessionals = [
-    {
-      id: 'pro-0000-0000-0000-000000000001',
-      firstName: 'Claire',
-      lastName: 'Moreau',
-      specialty: 'Infirmière Libérale D.E.',
-      rating: 4.8,
-      reviews: 24,
-      avatar: 'https://i.pravatar.cc/150?u=claire.moreau'
-    },
-    {
-      id: 'pro-0000-0000-0000-000000000003',
-      firstName: 'Sarah',
-      lastName: 'Bernard',
-      specialty: 'Auxiliaire de vie (AVS) certifiée',
-      rating: 4.9,
-      reviews: 31,
-      avatar: 'https://i.pravatar.cc/150?u=sarah.bernard'
-    },
-    {
-      id: 'pro-0000-0000-0000-000000000002',
-      firstName: 'Lucas',
-      lastName: 'Dubois',
-      specialty: 'Infirmier Urgentiste D.E.',
-      rating: 4.6,
-      reviews: 18,
-      avatar: 'https://i.pravatar.cc/150?u=lucas.dubois'
-    }
-  ];
-
   // Pre-list of available care types
   const availableCares = [
     { id: 'daily_assistance', label: 'Aide au quotidien', emoji: '❤️', color: 'rgba(239, 68, 68, 0.06)', textColor: '#EF4444' },
@@ -90,7 +66,7 @@ export default function PatientDashboard() {
       {/* ── Welcome Header ── */}
       <div style={{ marginBottom: 'var(--space-6)' }}>
         <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          Bonjour, {user?.firstName || 'Sophie'} 👋
+          Bonjour, {user?.firstName || ''} 👋
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-xs)', marginTop: 4 }}>
           Comment allez-vous aujourd'hui ?
@@ -161,27 +137,15 @@ export default function PatientDashboard() {
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: 'var(--font-base)', fontWeight: 800, margin: 0, color: 'white' }}>
-                    Dr. Martin Dubois
-                  </h3>
-                  <p style={{ fontSize: 'var(--font-xs)', opacity: 0.9, marginTop: 4, fontWeight: 500 }}>
-                    Consultation générale
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 'var(--font-base)', fontWeight: 800, color: 'white' }}>
-                    10:30
-                  </div>
-                  <div style={{ fontSize: '10px', opacity: 0.85, fontWeight: 500 }}>
-                    Jeudi 15 mai 2026
-                  </div>
-                </div>
-              </div>
+              <h3 style={{ fontSize: 'var(--font-base)', fontWeight: 800, margin: '0 0 6px', color: 'white' }}>
+                Aucun rendez-vous confirmé
+              </h3>
+              <p style={{ fontSize: 'var(--font-xs)', opacity: 0.9, margin: '0 0 16px', fontWeight: 500 }}>
+                Créez une demande pour trouver un professionnel disponible.
+              </p>
               
               <button 
-                onClick={() => navigate('/patient/calendar')}
+                onClick={() => navigate('/patient/create-mission')}
                 className="btn"
                 style={{ 
                   background: 'white', 
@@ -197,7 +161,7 @@ export default function PatientDashboard() {
                   marginTop: '4px'
                 }}
               >
-                Voir les détails
+                Créer une demande
               </button>
             </div>
           )}
@@ -346,7 +310,11 @@ export default function PatientDashboard() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {topProfessionals.map((pro) => (
+          {topProfessionals.length === 0 ? (
+            <div className="card" style={{ padding: 'var(--space-5)', color: 'var(--text-secondary)', textAlign: 'center' }}>
+              Aucun professionnel vérifié n’est encore référencé dans votre zone.
+            </div>
+          ) : topProfessionals.map((pro) => (
             <div 
               key={pro.id}
               onClick={() => navigate(`/pro/view/${pro.id}`)}
@@ -365,7 +333,7 @@ export default function PatientDashboard() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <img 
-                  src={pro.avatar} 
+                  src={pro.avatar || logoFallback}
                   alt={`${pro.firstName} ${pro.lastName}`} 
                   style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
                 />
@@ -374,14 +342,14 @@ export default function PatientDashboard() {
                     {pro.firstName} {pro.lastName}
                   </h4>
                   <p style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 500, marginTop: '2px' }}>
-                    {pro.specialty}
+                    {pro.professionalInfo.specialties?.[0] || 'Professionnel à domicile'}
                   </p>
                   
                   {/* Rating Stars indicators */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
                     <Star size={12} fill="currentColor" style={{ color: '#F59E0B' }} />
-                    <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)' }}>{pro.rating}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 500 }}>({pro.reviews} avis)</span>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)' }}>{pro.professionalInfo.ratingAverage || '—'}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 500 }}>({pro.professionalInfo.ratingCount || 0} avis)</span>
                   </div>
                 </div>
               </div>
@@ -398,7 +366,7 @@ export default function PatientDashboard() {
       <div className="animate-fadeInUp" style={{ animationDelay: '300ms', marginBottom: 'var(--space-6)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
           <h2 style={{ fontSize: 'var(--font-base)', fontWeight: 800, color: 'var(--text-primary)' }}>Conseils du jour</h2>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-link)', cursor: 'pointer' }}>Voir tout</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)' }}>Prévention</span>
         </div>
         
         <div className="glass-card" style={{

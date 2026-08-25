@@ -1,13 +1,19 @@
 // ── Favorites Service (Supabase) ──
 import supabase from '../lib/supabase';
+import storageService from './storageService';
+import { isDemoMode } from '../config/runtime';
 
 export const favoritesService = {
   async getByPatient(patientId) {
-    const { data } = await supabase
+    if (isDemoMode) {
+      return storageService.getFavorites().filter(favorite => favorite.patientId === patientId);
+    }
+    const { data, error } = await supabase
       .from('favorites')
       .select('*')
       .eq('patient_id', patientId);
 
+    if (error) throw new Error(error.message);
     return (data || []).map(f => ({
       patientId: f.patient_id,
       proId: f.pro_id,
@@ -16,31 +22,54 @@ export const favoritesService = {
   },
 
   async isFavorite(patientId, proId) {
-    const { data } = await supabase
+    if (isDemoMode) {
+      return storageService.getFavorites().some(favorite =>
+        favorite.patientId === patientId && favorite.proId === proId
+      );
+    }
+    const { data, error } = await supabase
       .from('favorites')
       .select('patient_id')
       .eq('patient_id', patientId)
       .eq('pro_id', proId)
-      .single();
+      .maybeSingle();
 
+    if (error) throw new Error(error.message);
     return !!data;
   },
 
   async toggle(patientId, proId) {
     const exists = await this.isFavorite(patientId, proId);
 
+    if (isDemoMode) {
+      const favorites = storageService.getFavorites();
+      if (exists) {
+        storageService.setFavorites(favorites.filter(favorite =>
+          favorite.patientId !== patientId || favorite.proId !== proId
+        ));
+        return false;
+      }
+      storageService.setFavorites([
+        ...favorites,
+        { patientId, proId, createdAt: new Date().toISOString() },
+      ]);
+      return true;
+    }
+
     if (exists) {
-      await supabase
+      const { error } = await supabase
         .from('favorites')
         .delete()
         .eq('patient_id', patientId)
         .eq('pro_id', proId);
-      return false; // removed
+      if (error) throw new Error(error.message);
+      return false;
     } else {
-      await supabase
+      const { error } = await supabase
         .from('favorites')
         .insert({ patient_id: patientId, pro_id: proId });
-      return true; // added
+      if (error) throw new Error(error.message);
+      return true;
     }
   },
 

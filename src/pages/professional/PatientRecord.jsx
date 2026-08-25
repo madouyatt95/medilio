@@ -1,41 +1,59 @@
 // ── Patient Record (Shared Transmission Log) ──
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/authService';
 import missionService from '../../services/missionService';
 import { CARE_TYPES } from '../../utils/constants';
 import { formatDate, formatRelative } from '../../utils/dateUtils';
-import { ArrowLeft, User, FileText, Calendar, Activity } from 'lucide-react';
+import { ArrowLeft, FileText, Calendar, Activity } from 'lucide-react';
+import { LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 
 export default function PatientRecord() {
   const { patientId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   
   const [patient, setPatient] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
-      // In a real app we'd fetch patient profile based on patientId. Here we mock from users.
-      const users = await authService.getAllUsers();
-      const p = users.find(u => u.id === patientId);
-      setPatient(p);
-
-      const all = await missionService.getAll();
-      const patientMissions = all.filter(m => m.patientId === patientId)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
-      setHistory(patientMissions);
-      setLoading(false);
+      setLoading(true);
+      setLoadError('');
+      try {
+        const [patientProfile, patientMissions] = await withTimeout(Promise.all([
+          authService.getProfile(patientId),
+          missionService.getByPatient(patientId),
+        ]));
+        if (cancelled) return;
+        setPatient(patientProfile);
+        setHistory(patientMissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message || 'Impossible de charger le dossier patient.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    if (patientId) load();
-  }, [patientId]);
+    if (patientId) void load();
+    return () => { cancelled = true; };
+  }, [patientId, reloadKey]);
 
-  if (loading) return <div className="loading-screen"><div className="spinner spinner-lg" /></div>;
-  if (!patient) return <div className="page-container">Patient introuvable</div>;
+  if (loading) return <LoadingState label="Chargement du dossier patient…" />;
+  if (loadError || !patient) {
+    return (
+      <LoadErrorState
+        title="Dossier inaccessible"
+        message={loadError || 'Patient introuvable ou accès non autorisé.'}
+        onBack={() => navigate(-1)}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 

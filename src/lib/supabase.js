@@ -1,12 +1,17 @@
 // ── Supabase Client ──
 import { createClient } from '@supabase/supabase-js';
+import { isBackendConfigured, supabaseAnonKey, supabaseUrl } from '../config/runtime';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// A non-routable client keeps the module importable for the local-only demo.
+// Production screens stop before using it when configuration is missing.
+const clientUrl = isBackendConfigured ? supabaseUrl : 'http://127.0.0.1:54321';
+const clientKey = isBackendConfigured ? supabaseAnonKey : 'medilio-local-demo';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables. Check your .env file.');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(clientUrl, clientKey, {
+  auth: {
+    persistSession: isBackendConfigured,
+    autoRefreshToken: isBackendConfigured,
+    detectSessionInUrl: isBackendConfigured,
+  },
+});
 export default supabase;

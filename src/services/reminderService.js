@@ -6,7 +6,6 @@
 import emailService from './emailService';
 import missionService from './missionService';
 import authService from './authService';
-import { CARE_TYPES } from '../utils/constants';
 
 const SENT_KEY = 'medilio_reminders_sent';
 
@@ -43,10 +42,6 @@ function getTomorrowStr() {
   return tomorrow.toISOString().split('T')[0];
 }
 
-function getCareLabel(type) {
-  return CARE_TYPES.find(c => c.id === type)?.label || type;
-}
-
 export const reminderService = {
   /**
    * Vérifie et envoie les rappels pour les missions du lendemain.
@@ -62,63 +57,26 @@ export const reminderService = {
     let skipped = 0;
 
     try {
-      // Récupérer tous les utilisateurs pour le lookup email
-      const allUsers = await authService.getAllUsers();
-      const usersById = {};
-      allUsers.forEach(u => { usersById[u.id] = u; });
+      const session = await authService.getProfile(currentUserId);
+      if (!session) return { sent: 0, skipped: 0 };
+      const myMissions = session.role === 'professional'
+        ? await missionService.getByProfessional(currentUserId)
+        : session.role === 'establishment'
+          ? await missionService.getByEstablishment(currentUserId)
+          : await missionService.getByPatient(currentUserId);
+      const tomorrowMissions = myMissions.filter(mission =>
+        mission.scheduledDate === tomorrow && ['assigned', 'in_progress'].includes(mission.status)
+      );
 
-      const currentUser = usersById[currentUserId];
-      if (!currentUser) return { sent: 0, skipped: 0 };
-
-      // ── Rappels Patient ──
-      if (currentUser.role === 'patient') {
-        const myMissions = await missionService.getByPatient(currentUserId);
-        const tomorrowMissions = myMissions.filter(m =>
-          m.scheduledDate === tomorrow &&
-          (m.status === 'assigned' || m.status === 'in_progress')
-        );
-
-        for (const mission of tomorrowMissions) {
-          // Rappel au patient
-          if (!wasReminderSent(mission.id, 'patient')) {
-            const pro = mission.assignedProId ? usersById[mission.assignedProId] : null;
-            await emailService.sendReminder({
-              to: currentUser.email,
-              mission,
-              careTypeLabel: getCareLabel(mission.careType),
-              contactName: pro ? `${pro.firstName} ${pro.lastName}` : 'Votre professionnel',
-            });
-            markReminderSent(mission.id, 'patient');
-            sent++;
-          } else {
-            skipped++;
-          }
+      for (const mission of tomorrowMissions) {
+        const reminderType = session.role;
+        if (wasReminderSent(mission.id, reminderType)) {
+          skipped++;
+          continue;
         }
-      }
-
-      // ── Rappels Professionnel ──
-      if (currentUser.role === 'professional') {
-        const myMissions = await missionService.getByProfessional(currentUserId);
-        const tomorrowMissions = myMissions.filter(m =>
-          m.scheduledDate === tomorrow &&
-          (m.status === 'assigned' || m.status === 'in_progress')
-        );
-
-        for (const mission of tomorrowMissions) {
-          // Rappel au pro
-          if (!wasReminderSent(mission.id, 'pro')) {
-            await emailService.sendReminder({
-              to: currentUser.email,
-              mission,
-              careTypeLabel: getCareLabel(mission.careType),
-              contactName: mission.patientInfo?.name || 'Le patient',
-            });
-            markReminderSent(mission.id, 'pro');
-            sent++;
-          } else {
-            skipped++;
-          }
-        }
+        await emailService.sendReminder({ mission });
+        markReminderSent(mission.id, reminderType);
+        sent++;
       }
     } catch (err) {
       console.warn('Reminder check error:', err);

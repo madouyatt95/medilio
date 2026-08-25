@@ -5,19 +5,19 @@ import authService from '../../services/authService';
 import missionService from '../../services/missionService';
 import ratingService from '../../services/ratingService';
 import { MISSION_STATUS_LABELS, CARE_TYPES } from '../../utils/constants';
-import { formatDate, formatRelative } from '../../utils/dateUtils';
+import { formatDate } from '../../utils/dateUtils';
 import { RatingDisplay } from '../../components/SharedComponents';
 import {
   Home, Users, ClipboardList, Shield, Heart, CreditCard,
   Star, MessageSquare, Settings, Headphones, Download,
-  ChevronDown, Bell, CheckCircle, Ban, Trash2, X, Check as CheckIcon,
-  ShieldAlert, ArrowUpDown, ArrowUpRight, TrendingUp, Menu, LogOut
+  ChevronDown, Bell, CheckCircle, Ban, Trash2, X,
+  ShieldAlert, ArrowUpDown, TrendingUp, Menu, LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo-medilio.png';
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview'); // Active sidebar tab
   const [users, setUsers] = useState([]);
@@ -79,14 +79,26 @@ export default function AdminDashboard() {
   const familyExpenses = completedMissions.reduce((s, m) => s + (Number(m.estimatedCost) || 0), 0);
   const platformCommissions = familyExpenses * 0.15;
   const proRevenues = familyExpenses * 0.85;
+  const activityBuckets = Array.from({ length: 27 }, (_, index) => {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (26 - index));
+    const nextDay = new Date(day);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return missions.filter(mission => {
+      const createdAt = new Date(mission.createdAt);
+      return createdAt >= day && createdAt < nextDay;
+    }).length;
+  });
+  const maxBucket = Math.max(...activityBuckets, 1);
 
   // Calcul des métriques d'activité
   const totalMissions = missions.length;
   const assignedMissions = missions.filter(m => m.status === 'assigned');
+  const inProgressMissions = missions.filter(m => m.status === 'in_progress');
   const openMissions = missions.filter(m => m.status === 'open');
   const cancelledMissions = missions.filter(m => m.status === 'cancelled');
 
-  const assignmentRate = totalMissions > 0 ? (((assignedMissions.length + completedMissions.length) / totalMissions) * 100).toFixed(0) : 0;
   const completionRate = totalMissions > 0 ? ((completedMissions.length / totalMissions) * 100).toFixed(0) : 0;
 
   // Palmarès
@@ -131,11 +143,9 @@ export default function AdminDashboard() {
   };
 
   const handleVerifyPro = async (userId) => {
-    const u = users.find(u => u.id === userId);
-    if (u?.professionalInfo) {
-      await authService.updateProfile(userId, {
-        professionalInfo: { ...u.professionalInfo, verified: !u.professionalInfo.verified }
-      });
+    const account = users.find(item => item.id === userId);
+    if (account && ['professional', 'establishment'].includes(account.role)) {
+      await authService.toggleVerification(userId);
       setUsers(await authService.getAllUsers());
     }
     setShowVerifyModal(null);
@@ -144,7 +154,7 @@ export default function AdminDashboard() {
   // CSV Export
   const exportCSV = (type) => {
     let csv = '';
-    let filename = '';
+    let filename;
 
     if (type === 'users') {
       csv = 'Prénom,Nom,Email,Rôle,Téléphone,Ville,Inscrit le,Vérifié\n';
@@ -433,7 +443,10 @@ export default function AdminDashboard() {
 
             {/* Logout shortcut */}
             <button 
-              onClick={() => { authService.logout(); navigate('/login'); }}
+              onClick={async () => {
+                await logout();
+                navigate('/login');
+              }}
               style={{
                 background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#EF4444',
                 fontSize: '11px', fontWeight: 700, padding: isMobile ? '6px 8px' : '6px 12px', borderRadius: '8px', cursor: 'pointer'
@@ -492,10 +505,10 @@ export default function AdminDashboard() {
               {/* Stats Cards Row (4 Columns / 2 Columns) */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px' }}>
                 {[
-                  { label: "Utilisateurs", value: users.length.toString(), pct: "12%", icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
-                  { label: "Missions", value: totalMissions.toString(), pct: "18%", icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
-                  { label: "Intervenants vérifiés", value: verifiedPros.length.toString(), pct: "9%", icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
-                  { label: "CA Global", value: `${familyExpenses.toLocaleString('fr-FR')} €`, pct: "21%", icon: <TrendingUp size={18} />, iconBg: '#FFFBEB', iconCol: '#F59E0B' },
+                  { label: "Utilisateurs", value: users.length.toString(), icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
+                  { label: "Missions", value: totalMissions.toString(), icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
+                  { label: "Intervenants vérifiés", value: verifiedPros.length.toString(), icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
+                  { label: "Valeur estimée", value: `${familyExpenses.toLocaleString('fr-FR')} €`, icon: <TrendingUp size={18} />, iconBg: '#FFFBEB', iconCol: '#F59E0B' },
                 ].map((stat, idx) => (
                   <div key={idx} style={{
                     background: 'white',
@@ -520,10 +533,7 @@ export default function AdminDashboard() {
                       <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', margin: '0 0 2px 0' }}>{stat.value}</div>
                       <div style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>{stat.label}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#10B981', fontWeight: 700 }}>
-                      <span style={{ background: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>↑ {stat.pct}</span>
-                      <span style={{ color: '#64748B', fontWeight: 500 }}>vs mois dernier</span>
-                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500 }}>Données actuellement enregistrées</div>
                   </div>
                 ))}
               </div>
@@ -556,16 +566,15 @@ export default function AdminDashboard() {
                 {/* Substats Header row */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px', borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
                   {[
-                    { label: "Nouveaux utilisateurs", value: users.length.toString(), trend: "↑ 12%" },
-                    { label: "Nouvelles missions", value: totalMissions.toString(), trend: "↑ 15%" },
-                    { label: "Missions terminées", value: completedMissions.length.toString(), trend: "↑ 10%" },
-                    { label: "Commissions générées", value: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, trend: "↑ 23%", col: '#F59E0B' },
+                    { label: "Utilisateurs enregistrés", value: users.length.toString() },
+                    { label: "Missions enregistrées", value: totalMissions.toString() },
+                    { label: "Missions terminées", value: completedMissions.length.toString() },
+                    { label: "Commission théorique (15%)", value: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#F59E0B' },
                   ].map((sub, i) => (
                     <div key={i}>
                       <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, display: 'block', marginBottom: '2px' }}>{sub.label}</span>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                         <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>{sub.value}</span>
-                        <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: 700 }}>{sub.trend}</span>
                       </div>
                     </div>
                   ))}
@@ -666,21 +675,8 @@ export default function AdminDashboard() {
                       <svg width="100%" height="100%" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#E2E8F0" strokeWidth="3.5" />
                         
-                        {/* 52% (Terminées) - Blue */}
-                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#3B82F6" strokeWidth="3.5" 
-                          strokeDasharray="52 48" strokeDashoffset="25" />
-                        
-                        {/* 28% (En cours) - Emerald */}
-                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#10B981" strokeWidth="3.5" 
-                          strokeDasharray="28 72" strokeDashoffset="-27" />
-
-                        {/* 15% (Assignées) - Orange */}
-                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#F59E0B" strokeWidth="3.5" 
-                          strokeDasharray="15 85" strokeDashoffset="-55" />
-
-                        {/* 5% (Annulées) - Purple */}
-                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#8B5CF6" strokeWidth="3.5" 
-                          strokeDasharray="5 95" strokeDashoffset="-70" />
+                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#3B82F6" strokeWidth="3.5"
+                          strokeDasharray={`${completionRate} ${100 - completionRate}`} strokeDashoffset="25" />
                       </svg>
                       {/* Text in middle */}
                       <div style={{
@@ -696,8 +692,9 @@ export default function AdminDashboard() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {[
                         { label: "Terminées", count: completedMissions.length, pct: `${completionRate}%`, col: '#3B82F6' },
-                        { label: "En cours", count: assignedMissions.length, pct: `${totalMissions ? ((assignedMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#10B981' },
-                        { label: "Assignées", count: openMissions.length, pct: `${totalMissions ? ((openMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#F59E0B' },
+                        { label: "En cours", count: inProgressMissions.length, pct: `${totalMissions ? ((inProgressMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#10B981' },
+                        { label: "Affectées", count: assignedMissions.length, pct: `${totalMissions ? ((assignedMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#F59E0B' },
+                        { label: "Ouvertes", count: openMissions.length, pct: `${totalMissions ? ((openMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#64748B' },
                         { label: "Annulées", count: cancelledMissions.length, pct: `${totalMissions ? ((cancelledMissions.length / totalMissions) * 100).toFixed(0) : 0}%`, col: '#8B5CF6' },
                       ].map((lg, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -791,22 +788,18 @@ export default function AdminDashboard() {
                 {/* Left Side Info */}
                 <div style={{ width: isMobile ? '100%' : '220px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Chiffre d'Affaires Global</h3>
-                    <button style={{ color: '#2563EB', background: 'none', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Voir le détail</button>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Valeur indicative des missions</h3>
                   </div>
                   <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: '0 0 2px 0' }}>{familyExpenses.toLocaleString('fr-FR')} €</div>
-                  <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500, marginBottom: '12px' }}>Dépenses cumulées des familles</div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#10B981', fontWeight: 700, background: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
-                    <ArrowUpRight size={12} /> +25% <span style={{ color: '#64748B', fontWeight: 500 }}>vs mois dernier</span>
-                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500, marginBottom: '12px' }}>Somme des tarifs estimés, sans encaissement</div>
                 </div>
 
                 {/* Middle Bar Chart Wave */}
                 <div style={{ flex: 1, height: '90px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
-                  {[12, 18, 25, 45, 15, 30, 22, 60, 40, 50, 35, 75, 42, 58, 20, 68, 48, 85, 30, 78, 52, 90, 42, 60, 80, 50, 72].map((height, i) => (
+                  {activityBuckets.map((count, i) => (
                     <div key={i} style={{
                       flex: 1,
-                      height: `${height}%`,
+                      height: `${Math.max(4, (count / maxBucket) * 100)}%`,
                       background: '#3B82F6',
                       borderRadius: '2px 2px 0 0',
                       transition: 'all 0.3s'
@@ -817,8 +810,8 @@ export default function AdminDashboard() {
                 {/* Right Side Breakdown */}
                 <div style={{ width: isMobile ? '100%' : '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: isMobile ? 'none' : '1px solid #F1F5F9', borderTop: isMobile ? '1px solid #F1F5F9' : 'none', paddingLeft: isMobile ? 0 : '24px', paddingTop: isMobile ? '16px' : 0 }}>
                   {[
-                    { label: "Part Intervenants (85%)", val: `${proRevenues.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#10B981' },
-                    { label: "Commissions (15%)", val: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#3B82F6' },
+                    { label: "Part théorique intervenants (85%)", val: `${proRevenues.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#10B981' },
+                    { label: "Commission théorique (15%)", val: `${platformCommissions.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €`, col: '#3B82F6' },
                   ].map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1082,28 +1075,12 @@ export default function AdminDashboard() {
           {/* ── 6. BILLING TAB (FACTURATION) ── */}
           {tab === 'billing' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Suivi de Facturation</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Facturation</h1>
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Historique des Transactions</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[
-                    { id: "TX-9281", pro: "Claire Moreau", user: "Sophie Martin", type: "Prise de sang", amount: "45.00 €", date: "05/05/2026" },
-                    { id: "TX-4832", pro: "Lucas Dubois", user: "Julien Morel", type: "Pansement", amount: "65.00 €", date: "04/05/2026" },
-                  ].map((tx, i) => (
-                    <div key={i} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '13px' }}>Transaction {tx.id}</div>
-                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                          Soignant: {tx.pro} · Patient: {tx.user} ({tx.type})
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: 800, color: '#10B981' }}>{tx.amount}</span>
-                        <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>{tx.date}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Aucun prestataire de paiement connecté</h3>
+                <p style={{ color: '#64748B', margin: 0, lineHeight: 1.6 }}>
+                  Les montants affichés ailleurs sont des estimations déclaratives. Aucune transaction, commission ou facture n’est générée par Medilio.
+                </p>
               </div>
             </div>
           )}
@@ -1146,24 +1123,10 @@ export default function AdminDashboard() {
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Paramètres d'administration</h1>
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Données de démonstration</h3>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Sécurité et accès</h3>
                 <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Vous pouvez réinitialiser le scénario de démonstration pour recharger toutes les demandes de soins, utilisateurs et avis d'origine.
+                  Les rôles, vérifications et désactivations de comptes sont contrôlés depuis les écrans Utilisateurs et Vérifications.
                 </p>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    if (window.confirm("Réinitialiser toutes les données vers le scénario de démonstration ?")) {
-                      import('../../utils/demoData').then(m => {
-                        m.resetDemoData();
-                        window.location.reload();
-                      });
-                    }
-                  }}
-                  style={{ background: '#EF4444', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Réinitialiser le scénario de démo
-                </button>
               </div>
             </div>
           )}

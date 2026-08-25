@@ -2,27 +2,24 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
-import { useEffect, useState } from 'react';
-import { seedDemoData } from './utils/demoData';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import {
-  Activity, Home, ClipboardList, User, Users, Radar as RadarIcon,
-  TrendingUp, Bell, X, Shield, LogOut, Calendar as CalendarIcon, MessageCircle,
+  Home, ClipboardList, User, Users, Radar as RadarIcon,
+  Bell, X, Calendar as CalendarIcon,
   Plus, MessageSquare
 } from 'lucide-react';
 import { formatRelative, formatDate } from './utils/dateUtils';
 import { CARE_TYPES, MISSION_STATUS_LABELS } from './utils/constants';
 import missionService from './services/missionService';
-import supabase from './lib/supabase';
 import logo from './assets/logo-medilio.png';
 
 // ── Error Boundary ──
-import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
   componentDidCatch(error, errorInfo) {
@@ -32,17 +29,26 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', background: 'white', color: 'red', minHeight: '100vh', wordBreak: 'break-all' }}>
-          <h2>CRASH DETECTED</h2>
-          <details style={{ whiteSpace: 'pre-wrap' }}>
-            {this.state.error && this.state.error.toString()}
-            <br />
-            {this.state.errorInfo?.componentStack}
-          </details>
-          <button onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px' }}>
-            Réessayer
-          </button>
-        </div>
+        <main className="page-container" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+          <div className="card" role="alert" style={{ maxWidth: 520, textAlign: 'center', padding: 'var(--space-8)' }}>
+            <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 800, marginBottom: 'var(--space-3)' }}>
+              Un problème est survenu
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Vos données n’ont pas été modifiées. Rechargez l’application pour reprendre votre parcours.
+            </p>
+            {import.meta.env.DEV && this.state.error && (
+              <details style={{ marginTop: 'var(--space-4)', textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <summary>Détail technique</summary>
+                {this.state.error.toString()}
+                {this.state.errorInfo?.componentStack}
+              </details>
+            )}
+            <button className="btn btn-primary" onClick={() => window.location.reload()} style={{ marginTop: 'var(--space-5)' }}>
+              Recharger Medilio
+            </button>
+          </div>
+        </main>
       );
     }
     return this.props.children;
@@ -73,7 +79,7 @@ function Header() {
   const navigate = useNavigate();
 
   // Don't show header on landing, login, register
-  const hiddenPaths = ['/', '/login', '/register'];
+  const hiddenPaths = ['/', '/login', '/register', '/confidentialite', '/mentions-legales'];
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('create-mission')) return null;
 
@@ -318,30 +324,31 @@ function ToastContainer() {
 }
 
 // ── Import Pages ──
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import PatientDashboard from './pages/patient/PatientDashboard';
-import CreateMission from './pages/patient/CreateMission';
-import PatientMissionDetail from './pages/patient/MissionDetail';
-import ProDashboard from './pages/professional/ProDashboard';
-import MissionRadar from './pages/professional/MissionRadar';
-import ProTour from './pages/professional/ProTour';
-import ProMissionDetail from './pages/professional/ProMissionDetail';
-import PatientRecord from './pages/professional/PatientRecord';
-import Earnings from './pages/professional/Earnings';
-import ProProfile from './pages/professional/ProProfile';
-import PatientProfile from './pages/patient/PatientProfile';
-import CalendarPage from './pages/CalendarPage';
-import ChatPage from './pages/ChatPage';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import ProPublicProfile from './pages/professional/ProPublicProfile';
-import MessagesPage from './pages/MessagesPage';
-import DocumentsPage from './pages/patient/DocumentsPage';
-import EtabDashboard from './pages/establishment/EtabDashboard';
-import EtabCreateMission from './pages/establishment/EtabCreateMission';
-import EtabPatients from './pages/establishment/EtabPatients';
-import EtabProfile from './pages/establishment/EtabProfile';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
+const CreateMission = lazy(() => import('./pages/patient/CreateMission'));
+const PatientMissionDetail = lazy(() => import('./pages/patient/MissionDetail'));
+const ProDashboard = lazy(() => import('./pages/professional/ProDashboard'));
+const MissionRadar = lazy(() => import('./pages/professional/MissionRadar'));
+const ProTour = lazy(() => import('./pages/professional/ProTour'));
+const ProMissionDetail = lazy(() => import('./pages/professional/ProMissionDetail'));
+const PatientRecord = lazy(() => import('./pages/professional/PatientRecord'));
+const Earnings = lazy(() => import('./pages/professional/Earnings'));
+const ProProfile = lazy(() => import('./pages/professional/ProProfile'));
+const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const ChatPage = lazy(() => import('./pages/ChatPage'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const ProPublicProfile = lazy(() => import('./pages/professional/ProPublicProfile'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const DocumentsPage = lazy(() => import('./pages/patient/DocumentsPage'));
+const EtabDashboard = lazy(() => import('./pages/establishment/EtabDashboard'));
+const EtabCreateMission = lazy(() => import('./pages/establishment/EtabCreateMission'));
+const EtabPatients = lazy(() => import('./pages/establishment/EtabPatients'));
+const EtabProfile = lazy(() => import('./pages/establishment/EtabProfile'));
+const LegalPage = lazy(() => import('./pages/LegalPage'));
 
 // ── Main App Content ──
 function AppContent() {
@@ -372,13 +379,16 @@ function AppContent() {
   const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin');
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary key={location.key}>
       {!isAdmin && <Header />}
       <ToastContainer />
+      <Suspense fallback={<div className="loading-screen"><div className="spinner spinner-lg" /></div>}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/confidentialite" element={<LegalPage />} />
+        <Route path="/mentions-legales" element={<LegalPage />} />
 
         {/* Patient Routes */}
         <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={['patient']}><PatientDashboard /></ProtectedRoute>} />
@@ -402,10 +412,10 @@ function AppContent() {
         <Route path="/pro/messages" element={<ProtectedRoute allowedRoles={['professional']}><MessagesPage /></ProtectedRoute>} />
 
         {/* Chat Route */}
-        <Route path="/chat/:missionId" element={<ProtectedRoute allowedRoles={['patient', 'professional']}><ChatPage /></ProtectedRoute>} />
+        <Route path="/chat/:missionId" element={<ProtectedRoute allowedRoles={['patient', 'professional', 'establishment']}><ChatPage /></ProtectedRoute>} />
 
         {/* Public Pro Profile */}
-        <Route path="/pro/view/:proId" element={<ProtectedRoute allowedRoles={['patient', 'professional']}><ProPublicProfile /></ProtectedRoute>} />
+        <Route path="/pro/view/:proId" element={<ProtectedRoute allowedRoles={['patient', 'professional', 'establishment']}><ProPublicProfile /></ProtectedRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
@@ -422,6 +432,7 @@ function AppContent() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       <BottomNav />
     </ErrorBoundary>
   );
@@ -487,10 +498,6 @@ function PatientMissions() {
 }
 
 export default function App() {
-  useEffect(() => {
-    seedDemoData();
-  }, []);
-
   return (
     <BrowserRouter>
       <AuthProvider>

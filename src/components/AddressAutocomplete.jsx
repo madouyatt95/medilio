@@ -1,7 +1,7 @@
 // ── Address Autocomplete Component ──
 import { useState, useEffect, useRef, useCallback } from 'react';
 import geocodingService from '../services/geocodingService';
-import { MapPin, Search, Loader2, X } from 'lucide-react';
+import { MapPin, Loader2, X } from 'lucide-react';
 
 /**
  * @param {Object} props
@@ -114,7 +114,7 @@ export default function AddressAutocomplete({ onSelect, initialValue = '', place
   // Update query when initialValue changes externally
   useEffect(() => {
     if (initialValue && !query) setQuery(initialValue);
-  }, [initialValue]);
+  }, [initialValue, query]);
 
   return (
     <div className="address-autocomplete" ref={wrapperRef}>

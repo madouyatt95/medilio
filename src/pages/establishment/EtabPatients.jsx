@@ -4,18 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
-import storageService from '../../services/storageService';
+import managedPatientService from '../../services/managedPatientService';
 import { MISSION_STATUS_LABELS, CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import {
-  Users, Plus, Search, User, ChevronRight, ClipboardList,
-  Phone, MapPin, Calendar, ArrowLeft, X, Activity, UserPlus
+  Users, Plus, Search, ChevronRight, ClipboardList,
+  Phone, MapPin, ArrowLeft, X, UserPlus
 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function EtabPatients() {
   const { user } = useAuth();
-  const { addToast } = useNotifications();
+  const { showToast } = useNotifications();
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [missions, setMissions] = useState([]);
@@ -28,67 +27,42 @@ export default function EtabPatients() {
   });
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    async function loadData() {
+      if (!user) return;
+      try {
+        const [managedPatients, establishmentMissions] = await Promise.all([
+          managedPatientService.getByEstablishment(user.id),
+          missionService.getByEstablishment(user.id),
+        ]);
+        setPatients(managedPatients);
+        setMissions(establishmentMissions);
+      } catch (error) {
+        showToast(`Chargement impossible : ${error.message}`, 'error');
+      }
+    }
+    void loadData();
+  }, [user, showToast]);
 
-  async function loadData() {
-    if (!user) return;
-    // Load patients created by this establishment
-    const allUsers = storageService.getUsers();
-    const etabPatients = allUsers.filter(u =>
-      u.role === 'patient' && u.managedByEstablishmentId === user.id
-    );
-    setPatients(etabPatients);
-
-    // Load missions
-    try {
-      const all = await missionService.getAll();
-      const etabMissions = all.filter(m =>
-        m.createdByEstablishmentId === user.id || m.patientId === user.id
-      );
-      setMissions(etabMissions);
-    } catch {}
-  }
-
-  const handleAddPatient = () => {
+  const handleAddPatient = async () => {
     if (!newPatient.firstName || !newPatient.lastName) {
-      addToast('Veuillez remplir le nom et prénom', 'error');
+      showToast('Veuillez remplir le nom et prénom', 'error');
       return;
     }
-
-    const patient = {
-      id: uuidv4(),
-      email: '',
-      role: 'patient',
-      firstName: newPatient.firstName,
-      lastName: newPatient.lastName,
-      phone: newPatient.phone || '',
-      avatar: null,
-      createdAt: new Date().toISOString(),
-      address: {
-        street: newPatient.street || '',
-        city: newPatient.city || '',
-        postalCode: newPatient.postalCode || '',
-      },
-      patientConditions: newPatient.conditions || '',
-      patientAge: newPatient.age ? parseInt(newPatient.age) : null,
-      managedByEstablishmentId: user.id,
-      managedAccount: true, // Flag: this patient doesn't have login credentials yet
-    };
-
-    const allUsers = storageService.getUsers();
-    storageService.setUsers([patient, ...allUsers]);
-    setPatients(prev => [patient, ...prev]);
-    setNewPatient({ firstName: '', lastName: '', age: '', phone: '', conditions: '', street: '', city: '', postalCode: '' });
-    setShowAdd(false);
-    addToast(`Patient ${patient.firstName} ${patient.lastName} ajouté`, 'success');
+    try {
+      const patient = await managedPatientService.create(user.id, newPatient);
+      setPatients(prev => [patient, ...prev]);
+      setNewPatient({ firstName: '', lastName: '', age: '', phone: '', conditions: '', street: '', city: '', postalCode: '' });
+      setShowAdd(false);
+      showToast(`Patient ${patient.firstName} ${patient.lastName} ajouté`, 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
   };
 
-  const getPatientMissions = (patientName) => {
-    return missions.filter(m =>
-      m.patientInfo?.name?.toLowerCase().includes(patientName.toLowerCase())
-    );
-  };
+  const getPatientMissions = (patient) => missions.filter(mission =>
+    mission.managedPatientId === patient.id
+    || (!mission.managedPatientId && mission.patientInfo?.name === `${patient.firstName} ${patient.lastName}`)
+  );
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
@@ -98,7 +72,7 @@ export default function EtabPatients() {
 
   // Patient detail view
   if (selectedPatient) {
-    const patientMissions = getPatientMissions(`${selectedPatient.firstName} ${selectedPatient.lastName}`);
+    const patientMissions = getPatientMissions(selectedPatient);
     return (
       <div className="page-container">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
@@ -157,7 +131,7 @@ export default function EtabPatients() {
         </div>
 
         {/* Quick Action */}
-        <button className="btn btn-primary btn-block" onClick={() => navigate('/etab/create-mission')}
+        <button className="btn btn-primary btn-block" onClick={() => navigate(`/etab/create-mission?patient=${selectedPatient.id}`)}
           style={{ marginBottom: 'var(--space-5)' }}>
           <Plus size={18} /> Créer une mission pour ce patient
         </button>

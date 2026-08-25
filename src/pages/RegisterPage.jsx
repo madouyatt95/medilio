@@ -2,13 +2,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Mail, Lock, User, Phone, Activity, Heart, Stethoscope, Building2, MapPin } from 'lucide-react';
+import { UserPlus, Mail, Lock, Phone, Heart, Stethoscope, Building2, MapPin } from 'lucide-react';
 import { ESTABLISHMENT_TYPES } from '../utils/constants';
 import logo from '../assets/logo-medilio.png';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { register, loading, error, clearError } = useAuth();
+  const { register, loading, error, configurationError, clearError } = useAuth();
+  const [confirmationEmail, setConfirmationEmail] = useState('');
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', phone: '', role: 'patient',
     street: '', city: '', postalCode: '',
@@ -21,7 +22,12 @@ export default function RegisterPage() {
     e.preventDefault();
     clearError();
     try {
-      const user = await register(form);
+      const result = await register(form);
+      if (result.requiresEmailConfirmation) {
+        setConfirmationEmail(result.email);
+        return;
+      }
+      const user = result.profile;
       if (user.role === 'professional') navigate('/pro/dashboard');
       else if (user.role === 'establishment') navigate('/etab/dashboard');
       else navigate('/patient/dashboard');
@@ -43,14 +49,22 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          {error && (
+        {confirmationEmail ? (
+          <div className="card" role="status" style={{ textAlign: 'center' }}>
+            <h2 style={{ marginBottom: 'var(--space-3)' }}>Confirmez votre adresse email</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
+              Un lien de confirmation a été envoyé à {confirmationEmail}.
+            </p>
+            <Link className="btn btn-primary btn-block" to="/login">Retour à la connexion</Link>
+          </div>
+        ) : <form className="auth-form" onSubmit={handleSubmit}>
+          {(error || configurationError) && (
             <div style={{
               padding: '12px 16px', background: 'var(--color-danger-light)',
               color: 'var(--color-danger)', borderRadius: 'var(--radius-md)',
               fontSize: 'var(--font-sm)', fontWeight: 500,
             }}>
-              {error}
+              {error || configurationError}
             </div>
           )}
 
@@ -189,7 +203,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading || Boolean(configurationError)}>
             {loading ? <span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : (
               <>
                 <UserPlus size={18} />
@@ -197,7 +211,7 @@ export default function RegisterPage() {
               </>
             )}
           </button>
-        </form>
+        </form>}
 
         <div className="auth-footer">
           Déjà un compte ? <Link to="/login">Se connecter</Link>

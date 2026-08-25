@@ -5,7 +5,12 @@ import storageService from '../services/storageService';
 const DEMO_SEEDED_KEY = 'medilio_demo_v8';
 
 export function seedDemoData() {
-  if (localStorage.getItem(DEMO_SEEDED_KEY)) return;
+  const existingUsers = storageService.getUsers();
+  const hasCompleteSeed = existingUsers.some(user => user.email === 'admin@medilio.fr')
+    && existingUsers.some(user => user.email === 'famille.dupont@email.fr')
+    && existingUsers.some(user => user.email === 'claire.infirmiere@email.fr')
+    && existingUsers.some(user => user.email === 'clinique.pasteur@email.fr');
+  if (localStorage.getItem(DEMO_SEEDED_KEY) && hasCompleteSeed) return;
   
   // Clean old versions
   localStorage.removeItem('medilio_demo_v5');
@@ -20,12 +25,12 @@ export function seedDemoData() {
   localStorage.removeItem('medilio_chats');
   localStorage.removeItem('medilio_reminders');
   localStorage.removeItem('medilio_ratings');
+  localStorage.removeItem('medilio_favorites');
 
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   const tomorrow = new Date(dayStart.getTime() + 86400000);
-  const nextWeek = new Date(dayStart.getTime() + 7 * 86400000);
   const yesterday = new Date(dayStart.getTime() - 86400000);
   const lastWeek = new Date(dayStart.getTime() - 7 * 86400000);
 
@@ -410,6 +415,7 @@ export function seedDemoData() {
     }
   ];
   storageService.setRatings(sampleRatings);
+  storageService.setFavorites([]);
 
   localStorage.setItem(DEMO_SEEDED_KEY, 'true');
 }
@@ -420,5 +426,6 @@ export function resetDemoData() {
   localStorage.removeItem('medilio_missions');
   localStorage.removeItem('medilio_notifications');
   localStorage.removeItem('medilio_current_user');
+  localStorage.removeItem('medilio_favorites');
   seedDemoData();
 }

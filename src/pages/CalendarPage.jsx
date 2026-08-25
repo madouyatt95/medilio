@@ -3,11 +3,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import missionService from '../services/missionService';
-import { CARE_TYPES, MISSION_STATUS_LABELS } from '../utils/constants';
-import { formatDate } from '../utils/dateUtils';
-import {
-  ArrowLeft, MapPin, Clock, Calendar, ChevronRight
-} from 'lucide-react';
+import { CARE_TYPES } from '../utils/constants';
+import { ArrowLeft, MapPin, Clock } from 'lucide-react';
+import { LoadingState, LoadErrorState } from '../components/SharedComponents';
+import { withTimeout } from '../utils/async';
 
 const MONTHS_FR = {
   '01': 'Janvier', '02': 'Février', '03': 'Mars', '04': 'Avril',
@@ -28,18 +27,43 @@ export default function CalendarPage() {
   const navigate = useNavigate();
   const [missions, setMissions] = useState([]);
   const [activeTab, setActiveTab] = useState('avenir'); // 'avenir' or 'passes'
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     async function load() {
       if (!user) return;
-      if (user.role === 'patient') {
-        setMissions(await missionService.getByPatient(user.id));
-      } else if (user.role === 'professional') {
-        setMissions(await missionService.getByProfessional(user.id));
+      setLoading(true);
+      setLoadError('');
+      try {
+        if (user.role === 'patient') {
+          setMissions(await withTimeout(missionService.getByPatient(user.id)));
+        } else if (user.role === 'professional') {
+          setMissions(await withTimeout(missionService.getByProfessional(user.id)));
+        } else if (user.role === 'establishment') {
+          setMissions(await withTimeout(missionService.getByEstablishment(user.id)));
+        }
+      } catch (error) {
+        setLoadError(error.message || 'Impossible de charger le calendrier.');
+      } finally {
+        setLoading(false);
       }
     }
-    load();
-  }, [user]);
+    void load();
+  }, [user, reloadKey]);
+
+  if (loading) return <LoadingState label="Chargement du calendrier…" />;
+  if (loadError) {
+    return (
+      <LoadErrorState
+        title="Calendrier indisponible"
+        message={loadError}
+        onBack={() => navigate(-1)}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
@@ -73,10 +97,11 @@ export default function CalendarPage() {
     return groups;
   }, {});
 
-  // Fallback items if database is empty for either tab to guarantee stunning presentation
   const hasItems = Object.keys(groupedMissions).length > 0;
 
-  const basePath = user?.role === 'patient' ? '/patient' : '/pro';
+  const basePath = user?.role === 'patient' ? '/patient'
+    : user?.role === 'establishment' ? '/etab'
+    : '/pro';
 
   // Get date helper parts
   const getDateParts = (dateStr) => {
@@ -165,9 +190,9 @@ export default function CalendarPage() {
                 {list.map((m) => {
                   const { dayOfWeek, dayNum, monthShort } = getDateParts(m.scheduledDate);
                   const isConfirmed = m.status === 'assigned' || m.status === 'completed' || m.status === 'in_progress';
-                  const titleName = user?.role === 'patient' 
-                    ? (m.assignedProName || 'Cabinet Moreau')
-                    : (m.patientName || 'Marie Dupont');
+                  const titleName = user?.role === 'patient' || user?.role === 'establishment'
+                    ? (m.assignedProName || 'Professionnel à confirmer')
+                    : (m.patientInfo?.name || 'Patient');
 
                   return (
                     <div 
@@ -267,133 +292,12 @@ export default function CalendarPage() {
           );
         })
       ) : (
-        /* Demo Default List to match Screenshot exactly if no database records are populated */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Mai 2026 */}
-          <div>
-            <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', marginBottom: '16px', paddingLeft: '4px' }}>
-              Mai 2026
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              {/* Item 1 */}
-              <div style={{ background: 'white', borderRadius: '20px', padding: '16px', boxShadow: '0 4px 18px rgba(15, 23, 42, 0.03)', border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: '#F0F5FF', borderRadius: '16px', width: '64px', height: '76px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>JEU.</span>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E3A8A', margin: '1px 0' }}>15</span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>MAI</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', margin: 0 }}>Dr. Martin Dubois</h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '2px', marginBottom: '8px' }}>Consultation générale</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <Clock size={13} style={{ color: '#94A3B8' }} />
-                      <span>10:30</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <MapPin size={13} style={{ color: '#94A3B8' }} />
-                      <span>Cabinet médical du Parc</span>
-                    </div>
-                  </div>
-                </div>
-                <span style={{ background: '#EAFAF1', color: '#10B981', fontSize: '11px', fontWeight: 700, padding: '6px 12px', borderRadius: '99px' }}>
-                  Confirmé
-                </span>
-              </div>
-
-              {/* Item 2 */}
-              <div style={{ background: 'white', borderRadius: '20px', padding: '16px', boxShadow: '0 4px 18px rgba(15, 23, 42, 0.03)', border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: '#F0F5FF', borderRadius: '16px', width: '64px', height: '76px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>MAR.</span>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E3A8A', margin: '1px 0' }}>20</span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>MAI</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', margin: 0 }}>Dr. Claire Moreau</h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '2px', marginBottom: '8px' }}>Suivi cardiologie</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <Clock size={13} style={{ color: '#94A3B8' }} />
-                      <span>14:00</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <MapPin size={13} style={{ color: '#94A3B8' }} />
-                      <span>Centre Cardio Paris</span>
-                    </div>
-                  </div>
-                </div>
-                <span style={{ background: '#EFF6FF', color: '#3B82F6', fontSize: '11px', fontWeight: 700, padding: '6px 12px', borderRadius: '99px' }}>
-                  À confirmer
-                </span>
-              </div>
-
-              {/* Item 3 */}
-              <div style={{ background: 'white', borderRadius: '20px', padding: '16px', boxShadow: '0 4px 18px rgba(15, 23, 42, 0.03)', border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: '#F0F5FF', borderRadius: '16px', width: '64px', height: '76px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>LUN.</span>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E3A8A', margin: '1px 0' }}>26</span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>MAI</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', margin: 0 }}>Dr. Paul Bernard</h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '2px', marginBottom: '8px' }}>Résultats d'examen</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <Clock size={13} style={{ color: '#94A3B8' }} />
-                      <span>11:15</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <MapPin size={13} style={{ color: '#94A3B8' }} />
-                      <span>Laboratoire Biolysis</span>
-                    </div>
-                  </div>
-                </div>
-                <span style={{ background: '#EAFAF1', color: '#10B981', fontSize: '11px', fontWeight: 700, padding: '6px 12px', borderRadius: '99px' }}>
-                  Confirmé
-                </span>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Juin 2026 */}
-          <div>
-            <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', marginBottom: '16px', paddingLeft: '4px' }}>
-              Juin 2026
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              {/* Item 4 */}
-              <div style={{ background: 'white', borderRadius: '20px', padding: '16px', boxShadow: '0 4px 18px rgba(15, 23, 42, 0.03)', border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: '#F0F5FF', borderRadius: '16px', width: '64px', height: '76px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>VEN.</span>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E3A8A', margin: '1px 0' }}>6</span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6' }}>JUIN</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', margin: 0 }}>Dr. Martin Dubois</h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '2px', marginBottom: '8px' }}>Consultation générale</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <Clock size={13} style={{ color: '#94A3B8' }} />
-                      <span>09:00</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569', fontWeight: 500 }}>
-                      <MapPin size={13} style={{ color: '#94A3B8' }} />
-                      <span>Cabinet médical du Parc</span>
-                    </div>
-                  </div>
-                </div>
-                <span style={{ background: '#EFF6FF', color: '#3B82F6', fontSize: '11px', fontWeight: 700, padding: '6px 12px', borderRadius: '99px' }}>
-                  À confirmer
-                </span>
-              </div>
-
-            </div>
-          </div>
-
+        <div className="empty-state" style={{ padding: 'var(--space-10)', textAlign: 'center' }}>
+          <Clock size={32} style={{ color: 'var(--text-tertiary)', marginBottom: 'var(--space-3)' }} />
+          <h2 style={{ fontSize: 'var(--font-base)' }}>Aucun rendez-vous</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)' }}>
+            Les missions planifiées apparaîtront ici.
+          </p>
         </div>
       )}
 

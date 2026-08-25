@@ -5,8 +5,7 @@ import missionService from '../../services/missionService';
 import { CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import {
-  TrendingUp, DollarSign, Calendar, CheckCircle,
-  ArrowLeft, ClipboardList
+  TrendingUp, ArrowLeft, ClipboardList
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,15 +43,18 @@ export default function Earnings() {
         <button className="btn btn-ghost btn-icon" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} />
         </button>
-        <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 700 }}>Mes revenus</h1>
+        <h1 style={{ fontSize: 'var(--font-xl)', fontWeight: 700 }}>Montants estimés</h1>
       </div>
 
       {/* Total */}
       <div className="earnings-total animate-fadeIn">
-        <div className="earnings-total-label">Revenus totaux</div>
+        <div className="earnings-total-label">Total indicatif des missions terminées</div>
         <div className="earnings-total-value">{totalEarnings} €</div>
         <div style={{ marginTop: 'var(--space-3)', opacity: 0.8, fontSize: 'var(--font-sm)' }}>
           {missions.length} mission(s) complétée(s)
+        </div>
+        <div style={{ marginTop: 8, opacity: 0.75, fontSize: 'var(--font-xs)' }}>
+          Aucun paiement ni reversement n’est traité par Medilio à ce stade.
         </div>
       </div>
 
@@ -76,8 +78,8 @@ export default function Earnings() {
         {missions.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon"><TrendingUp size={28} /></div>
-            <div className="empty-state-title">Aucun revenu</div>
-            <div className="empty-state-text">Complétez votre première mission pour voir vos revenus ici.</div>
+            <div className="empty-state-title">Aucun montant estimé</div>
+            <div className="empty-state-text">Les estimations apparaissent après les missions terminées.</div>
           </div>
         ) : (
           <div className="earnings-list">
@@ -93,7 +95,7 @@ export default function Earnings() {
                     <div className="earnings-item-date">{formatDate(m.completedAt || m.scheduledDate)}</div>
                   </div>
                 </div>
-                <div className="earnings-item-amount">+{m.estimatedCost || 0} €</div>
+                <div className="earnings-item-amount">{m.estimatedCost || 0} € estimés</div>
               </div>
             ))}
           </div>

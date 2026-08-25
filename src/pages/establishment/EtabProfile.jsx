@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
-import storageService from '../../services/storageService';
+import managedPatientService from '../../services/managedPatientService';
 import { ESTABLISHMENT_TYPES, CITIES } from '../../utils/constants';
 import AvatarUpload from '../../components/AvatarUpload';
 import {
   Building2, User, MapPin, Phone, Mail, Save, LogOut, Edit3,
-  Shield, Hash, Briefcase, Users, ClipboardList, TrendingUp,
-  CheckCircle, AlertCircle, Calendar, Clock
+  Shield, Hash, Briefcase, Users, ClipboardList,
+  CheckCircle, AlertCircle, Clock
 } from 'lucide-react';
 
 export default function EtabProfile() {
@@ -49,27 +49,25 @@ export default function EtabProfile() {
           service: user.establishmentInfo?.service || '',
         },
       });
-      loadStats();
+      async function loadStats() {
+        try {
+          const [etabMissions, patients] = await Promise.all([
+            missionService.getByEstablishment(user.id),
+            managedPatientService.getByEstablishment(user.id),
+          ]);
+          setStats({
+            missions: etabMissions.length,
+            patients: patients.length,
+            completed: etabMissions.filter(m => m.status === 'completed').length,
+            active: etabMissions.filter(m => ['open', 'assigned', 'in_progress'].includes(m.status)).length,
+          });
+        } catch (error) {
+          console.error('Impossible de charger les statistiques établissement', error);
+        }
+      }
+      void loadStats();
     }
   }, [user]);
-
-  async function loadStats() {
-    try {
-      const allMissions = await missionService.getAll();
-      const etabMissions = allMissions.filter(m =>
-        m.createdByEstablishmentId === user.id || m.patientId === user.id
-      );
-      const allUsers = storageService.getUsers();
-      const patients = allUsers.filter(u => u.managedByEstablishmentId === user.id);
-
-      setStats({
-        missions: etabMissions.length,
-        patients: patients.length,
-        completed: etabMissions.filter(m => m.status === 'completed').length,
-        active: etabMissions.filter(m => ['open', 'assigned', 'in_progress'].includes(m.status)).length,
-      });
-    } catch {}
-  }
 
   const update = (key, value) => {
     if (key.startsWith('address.')) {
@@ -338,32 +336,11 @@ export default function EtabProfile() {
             <div>
               <div style={{ fontWeight: 700, color: 'var(--color-warning)' }}>En attente de vérification</div>
               <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)' }}>
-                Ajoutez votre numéro FINESS pour accélérer la vérification. Notre équipe validera votre établissement sous 48h.
+                Ajoutez votre numéro FINESS afin que l’équipe puisse contrôler votre établissement.
               </div>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Dev Tools */}
-      <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', borderTop: '1px solid var(--border-color)' }}>
-        <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textAlign: 'center' }}>
-          Outils Développeur
-        </p>
-        <button
-          className="btn btn-sm btn-secondary btn-block"
-          style={{ background: 'white', color: 'var(--text-secondary)' }}
-          onClick={() => {
-            if (window.confirm("Réinitialiser toutes les données vers le scénario de démonstration ?")) {
-              import('../../utils/demoData').then(m => {
-                m.resetDemoData();
-                window.location.reload();
-              });
-            }
-          }}
-        >
-          Réinitialiser le scénario de démo
-        </button>
       </div>
 
       {/* Logout */}

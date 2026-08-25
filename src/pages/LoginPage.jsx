@@ -2,43 +2,40 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, Mail, Lock, Activity } from 'lucide-react';
+import { LogIn, Mail, Lock } from 'lucide-react';
 import logo from '../assets/logo-medilio.png';
+import { isDemoMode } from '../config/runtime';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, loading, error, clearError } = useAuth();
+  const { login, loading, error, configurationError, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const navigateAfterLogin = (account) => {
+    if (account.role === 'admin') navigate('/admin');
+    else if (account.role === 'professional') navigate('/pro/dashboard');
+    else if (account.role === 'establishment') navigate('/etab/dashboard');
+    else navigate('/patient/dashboard');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
     try {
       const u = await login(email, password);
-      if (u.role === 'admin') navigate('/admin');
-      else if (u.role === 'professional') navigate('/pro/dashboard');
-      else if (u.role === 'establishment') navigate('/etab/dashboard');
-      else navigate('/patient/dashboard');
+      navigateAfterLogin(u);
     } catch {
       // error is set in context
     }
   };
 
-  const handleQuickLogin = async (e, qEmail, qPassword) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setEmail(qEmail);
-    setPassword(qPassword);
+  const handleDemoLogin = async (demoEmail, demoPassword) => {
     clearError();
     try {
-      const u = await login(qEmail, qPassword);
-      if (u.role === 'admin') navigate('/admin');
-      else if (u.role === 'professional') navigate('/pro/dashboard');
-      else if (u.role === 'establishment') navigate('/etab/dashboard');
-      else navigate('/patient/dashboard');
-    } catch (err) {
-      console.error('Quick login failed', err);
+      navigateAfterLogin(await login(demoEmail, demoPassword));
+    } catch {
+      // error is set in context
     }
   };
 
@@ -56,7 +53,7 @@ export default function LoginPage() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          {error && (
+          {(error || configurationError) && (
             <div style={{
               padding: '12px 16px',
               background: 'var(--color-danger-light)',
@@ -65,7 +62,7 @@ export default function LoginPage() {
               fontSize: 'var(--font-sm)',
               fontWeight: 500,
             }}>
-              {error}
+              {error || configurationError}
             </div>
           )}
 
@@ -107,7 +104,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading || Boolean(configurationError)}>
             {loading ? <span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : (
               <>
                 <LogIn size={18} />
@@ -117,46 +114,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="auth-divider">ou</div>
-
-        <div className="glass-panel" style={{
-          padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)',
-          marginTop: 'var(--space-4)'
-        }}>
-          <strong style={{ display: 'block', marginBottom: 'var(--space-3)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>
-            ⚡️ Connexion Instantanée (Mode Démo)
-          </strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button 
-              className="btn btn-sm btn-secondary btn-block" 
-              onClick={(e) => handleQuickLogin(e, 'famille.dupont@email.fr', 'patient123')}
-              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
-            >
-              👩‍🦱 Marie (Patient)
-            </button>
-            <button 
-              className="btn btn-sm btn-secondary btn-block" 
-              onClick={(e) => handleQuickLogin(e, 'lucas.infirmier@email.fr', 'pro123')}
-              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
-            >
-              👨‍⚕️ Lucas (Pro / Intervenant)
-            </button>
-            <button 
-              className="btn btn-sm btn-secondary btn-block" 
-              onClick={(e) => handleQuickLogin(e, 'admin@medilio.fr', 'admin123')}
-              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
-            >
-              🛠 Admin
-            </button>
-            <button 
-              className="btn btn-sm btn-secondary btn-block" 
-              onClick={(e) => handleQuickLogin(e, 'clinique.pasteur@email.fr', 'etab123')}
-              style={{ justifyContent: 'flex-start', background: 'rgba(255,255,255,0.5)' }}
-            >
-              🏥 Clinique Pasteur (Établissement)
-            </button>
+        {isDemoMode && (
+          <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-5)', borderTop: '1px solid var(--border-light)' }}>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 'var(--font-xs)', marginBottom: 'var(--space-3)' }}>
+              Parcours de validation
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDemoLogin('famille.dupont@email.fr', 'patient123')}>Patient</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDemoLogin('claire.infirmiere@email.fr', 'pro123')}>Professionnel</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDemoLogin('clinique.pasteur@email.fr', 'etab123')}>Établissement</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDemoLogin('admin@medilio.fr', 'admin123')}>Administration</button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="auth-footer">
           Pas encore de compte ? <Link to="/register">Créer un compte</Link>

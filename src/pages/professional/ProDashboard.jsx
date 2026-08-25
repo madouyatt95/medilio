@@ -2,24 +2,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
 import ratingService from '../../services/ratingService';
-import { CARE_TYPES, MISSION_STATUS_LABELS } from '../../utils/constants';
+import { CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import {
-  Radar, Calendar, CheckCircle, Clock, MapPin, ChevronRight,
-  ClipboardList, Bell, Shield, Star, Award
+  Radar, CheckCircle, MapPin, ChevronRight,
+  ClipboardList, Shield, Star
 } from 'lucide-react';
 
 export default function ProDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { notifications } = useNotifications();
   const [myMissions, setMyMissions] = useState([]);
   const [openCount, setOpenCount] = useState(0);
-  const [ratingAvg, setRatingAvg] = useState(4.5);
-  const [loading, setLoading] = useState(true);
+  const [ratingAvg, setRatingAvg] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -39,8 +36,6 @@ export default function ProDashboard() {
           }
         } catch (err) {
           console.error("Pro dashboard data load error:", err);
-        } finally {
-          setLoading(false);
         }
       }
     }
@@ -50,7 +45,9 @@ export default function ProDashboard() {
   const assignedMissions = myMissions.filter(m => m.status === 'assigned' || m.status === 'in_progress');
   const completedMissions = myMissions.filter(m => m.status === 'completed');
   const totalEarnings = completedMissions.reduce((sum, m) => sum + (Number(m.estimatedCost) || 0), 0);
-  const unreadNotifs = notifications.filter(n => !n.read).length;
+  const completionRate = myMissions.length
+    ? Math.round((completedMissions.length / myMissions.length) * 100)
+    : 0;
 
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
@@ -221,14 +218,14 @@ export default function ProDashboard() {
           
           <div className="glass-card" style={{ padding: '16px 12px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {ratingAvg} <Star size={16} fill="currentColor" style={{ color: '#F59E0B' }} />
+              {ratingAvg || '—'} <Star size={16} fill="currentColor" style={{ color: '#F59E0B' }} />
             </span>
             <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)' }}>Note moyenne</span>
           </div>
 
           <div className="glass-card" style={{ padding: '16px 12px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-              98 % <Shield size={16} style={{ color: 'var(--color-success)' }} />
+              {completionRate} % <Shield size={16} style={{ color: 'var(--color-success)' }} />
             </span>
             <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)' }}>Taux de complétion</span>
           </div>
@@ -237,7 +234,7 @@ export default function ProDashboard() {
             <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {totalEarnings} €
             </span>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)' }}>Revenus ce mois</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)' }}>Montants estimés</span>
           </div>
 
         </div>

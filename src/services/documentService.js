@@ -1,8 +1,7 @@
 // ── Document Service (Supabase Storage — Secure Signed URLs) ──
 // Handles upload/download of medical documents (ordonnances, prescriptions)
-// Falls back to local base64 storage when Supabase Storage is unavailable
-
 import supabase from '../lib/supabase';
+import { assertBackendConfigured, isDemoMode } from '../config/runtime';
 
 const BUCKET = 'mission_docs';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -13,28 +12,6 @@ const ALLOWED_TYPES = [
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
-
-let _storageAvailable = null; // cached check
-
-/**
- * Check if Supabase Storage bucket exists and is accessible
- */
-async function isStorageAvailable() {
-  if (_storageAvailable !== null) return _storageAvailable;
-
-  try {
-    const { data, error } = await supabase.storage.getBucket(BUCKET);
-    _storageAvailable = !error && !!data;
-  } catch {
-    _storageAvailable = false;
-  }
-
-  if (!_storageAvailable) {
-    console.warn(`⚠️ Supabase Storage bucket "${BUCKET}" non disponible. Fallback base64 local.`);
-  }
-
-  return _storageAvailable;
-}
 
 /**
  * Generate a secure file path
@@ -64,37 +41,27 @@ export const documentService = {
     }
 
     const docId = Date.now().toString() + Math.random().toString(36).slice(2, 8);
-    const available = await isStorageAvailable();
+    if (isDemoMode) return this._uploadLocal(file, docId);
 
-    if (available) {
-      // ── Supabase Storage Upload ──
-      const path = generatePath(userId, file.name);
+    assertBackendConfigured();
+    const path = generatePath(userId, file.name);
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type,
-        });
-
-      if (uploadError) {
-        console.warn('Supabase upload failed, falling back to local:', uploadError.message);
-        return this._uploadLocal(file, docId);
-      }
-
-      return {
-        id: docId,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        path: path,
-        storageType: 'supabase',
-      };
-    }
-
-    // ── Fallback: Local base64 ──
-    return this._uploadLocal(file, docId);
+    if (uploadError) throw new Error(`Téléversement impossible : ${uploadError.message}`);
+    return {
+      id: docId,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      path,
+      storageType: 'supabase',
+    };
   },
 
   /**
@@ -107,7 +74,7 @@ export const documentService = {
         const doc = await this.upload(file, userId);
         results.push(doc);
       } catch (err) {
-        console.warn(`Skipping file ${file.name}:`, err.message);
+        throw new Error(`${file.name} : ${err.message}`, { cause: err });
       }
     }
     return results;
@@ -122,17 +89,17 @@ export const documentService = {
     if (!doc) return null;
 
     // Already has a local base64 data URI
-    if (doc.storageType === 'local' && doc.data) {
+    if (isDemoMode && doc.storageType === 'local' && doc.data) {
       return doc.data;
     }
 
     // Legacy: old documents with direct data
-    if (doc.data && doc.data.startsWith('data:')) {
+    if (isDemoMode && doc.data?.startsWith('data:')) {
       return doc.data;
     }
 
     // Legacy: old documents with public URL
-    if (doc.url) {
+    if (isDemoMode && doc.url) {
       return doc.url;
     }
 
@@ -166,9 +133,7 @@ export const documentService = {
         .from(BUCKET)
         .remove([doc.path]);
 
-      if (error) {
-        console.warn('Could not delete from storage:', error.message);
-      }
+      if (error) throw new Error(error.message);
     }
     // Local docs: nothing to clean up (they're embedded in the mission data)
   },
@@ -198,9 +163,14 @@ export const documentService = {
    * Check storage health
    */
   async checkHealth() {
-    const available = await isStorageAvailable();
+    if (isDemoMode) {
+      return { available: true, mode: 'demo', bucket: BUCKET, maxSize: MAX_SIZE, allowedTypes: ALLOWED_TYPES };
+    }
+    assertBackendConfigured();
+    const { error } = await supabase.storage.from(BUCKET).list('', { limit: 1 });
     return {
-      available,
+      available: !error,
+      error: error?.message || null,
       bucket: BUCKET,
       maxSize: MAX_SIZE,
       allowedTypes: ALLOWED_TYPES,

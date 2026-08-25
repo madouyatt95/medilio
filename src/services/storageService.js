@@ -7,19 +7,25 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'medilio_current_user',
   CHATS: 'medilio_chats',
   RATINGS: 'medilio_ratings',
+  FAVORITES: 'medilio_favorites',
 };
+
+const sessionFallback = new Map();
 
 export const storageService = {
   get(key) {
     try {
       const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
+      if (data) return JSON.parse(data);
     } catch {
-      return null;
+      // Some private/embedded browsers disable localStorage. Demo mode still
+      // remains usable for the current tab through the in-memory fallback.
     }
+    return sessionFallback.has(key) ? sessionFallback.get(key) : null;
   },
 
   set(key, value) {
+    sessionFallback.set(key, value);
     try {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
@@ -29,7 +35,12 @@ export const storageService = {
   },
 
   remove(key) {
-    localStorage.removeItem(key);
+    sessionFallback.delete(key);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // In-memory state has already been cleared.
+    }
   },
 
   // Users
@@ -79,6 +90,13 @@ export const storageService = {
   },
   setRatings(ratings) {
     this.set(STORAGE_KEYS.RATINGS, ratings);
+  },
+  // Favorites
+  getFavorites() {
+    return this.get(STORAGE_KEYS.FAVORITES) || [];
+  },
+  setFavorites(favorites) {
+    this.set(STORAGE_KEYS.FAVORITES, favorites);
   },
 };
 

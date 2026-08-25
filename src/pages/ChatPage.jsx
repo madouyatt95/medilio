@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import chatService from '../services/chatService';
 import missionService from '../services/missionService';
 import authService from '../services/authService';
@@ -13,6 +14,7 @@ export default function ChatPage() {
   const { missionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useNotifications();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [mission, setMission] = useState(null);
@@ -27,17 +29,21 @@ export default function ChatPage() {
       if (!m) return navigate(-1);
       setMission(m);
 
-      const allUsers = await authService.getAllUsers();
-      const otherId = user.role === 'patient' ? m.assignedProId : m.patientId;
-      setOtherUser(allUsers.find(u => u.id === otherId));
+      const otherId = user.role === 'professional'
+        ? (m.createdByEstablishmentId || m.patientId)
+        : m.assignedProId;
+      if (otherId) setOtherUser(await authService.getProfile(otherId));
 
       const convo = await chatService.getConversation(missionId);
       setChatId(convo.id);
       setMessages(convo.messages);
       await chatService.markAsRead(missionId, user.id);
     }
-    loadData();
-  }, [missionId, user, navigate]);
+    loadData().catch(error => {
+      showToast(`Conversation inaccessible : ${error.message}`, 'error');
+      navigate(-1);
+    });
+  }, [missionId, user, navigate, showToast]);
 
   // Real-time subscription
   useEffect(() => {
@@ -72,7 +78,7 @@ export default function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err) {
-      console.error(err);
+      showToast(`Envoi impossible : ${err.message}`, 'error');
       setInput(currentInput);
     }
   };

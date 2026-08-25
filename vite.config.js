@@ -10,43 +10,35 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifestFilename: 'manifest.json',
       manifest: {
-        name: 'Medilio Healthcare',
+        name: 'Medilio — Soins à domicile',
         short_name: 'Medilio',
+        description: 'Mise en relation sécurisée pour les soins à domicile.',
+        lang: 'fr',
+        start_url: '/',
+        scope: '/',
         theme_color: '#1e40af',
         background_color: '#f8fafc',
         display: 'standalone',
+        orientation: 'portrait-primary',
         icons: [
           {
-            src: '/logo-medilio.png',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
           },
           {
-            src: '/logo-medilio.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ],
       },
       workbox: {
-        // Cache API responses optionally
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+        // Only the static application shell is precached. Health data and
+        // authenticated API responses must never be persisted by Workbox.
+        runtimeCaching: []
       }
     })
   ],

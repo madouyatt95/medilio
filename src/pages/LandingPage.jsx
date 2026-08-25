@@ -1,8 +1,8 @@
 // ── Landing Page ──
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Heart, Shield, Clock, MapPin, Users, Star,
-  FileText, Bell, ChevronRight, Activity
+  Heart, Shield, Clock, MapPin,
+  FileText, Bell, ChevronRight
 } from 'lucide-react';
 import logo from '../assets/logo-medilio.png';
 
@@ -34,16 +34,16 @@ export default function LandingPage() {
         </div>
         <div className="landing-stats">
           <div className="landing-stat">
-            <div className="landing-stat-value">500+</div>
-            <div className="landing-stat-label">Intervenants</div>
+            <div className="landing-stat-value">4</div>
+            <div className="landing-stat-label">Espaces dédiés</div>
           </div>
           <div className="landing-stat">
-            <div className="landing-stat-value">2 000+</div>
-            <div className="landing-stat-label">Missions réalisées</div>
+            <div className="landing-stat-value">24/7</div>
+            <div className="landing-stat-label">Accès au suivi</div>
           </div>
           <div className="landing-stat">
-            <div className="landing-stat-value">4.9/5</div>
-            <div className="landing-stat-label">Satisfaction</div>
+            <div className="landing-stat-value">1</div>
+            <div className="landing-stat-label">Dossier partagé</div>
           </div>
         </div>
       </section>
@@ -92,7 +92,7 @@ export default function LandingPage() {
             </div>
             <h3 className="landing-feature-title">Professionnels vérifiés</h3>
             <p className="landing-feature-text">
-              Tous nos professionnels sont diplômés et vérifiés pour garantir des soins de qualité.
+              Le badge « Vérifié » distingue les profils contrôlés par l’équipe d’administration.
             </p>
           </div>
           <div className="landing-feature">
@@ -156,6 +156,10 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="landing-footer">
         <p>© 2026 Medilio — Tous droits réservés</p>
+        <p style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8 }}>
+          <Link to="/confidentialite">Confidentialité</Link>
+          <Link to="/mentions-legales">Mentions légales</Link>
+        </p>
       </footer>
     </div>
   );

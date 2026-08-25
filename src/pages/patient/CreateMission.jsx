@@ -13,7 +13,7 @@ import InteractiveMap from '../../components/InteractiveMap';
 import {
   ArrowLeft, ArrowRight, Check, Syringe, Scissors,
   ShowerHead, Activity, Pill, Dumbbell, Heart, Plus,
-  MapPin, Calendar, User, FileText, Upload, Repeat,
+  MapPin, Calendar, User, FileText,
   Crosshair, Loader2, Droplet, Droplets, TestTube, Wind, Bandage
 } from 'lucide-react';
 

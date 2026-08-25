@@ -1,14 +1,11 @@
 // ── Rating Service (Hybrid Supabase/Local Demo) ──
 import supabase from '../lib/supabase';
 import storageService from './storageService';
+import { isDemoMode } from '../config/runtime';
 
 export const ratingService = {
   async create({ missionId, patientId, proId, score, comment }) {
-    // 1. Try Local Demo First
-    const missions = storageService.getMissions();
-    const isLocalMission = missions.some(m => m.id === missionId);
-
-    if (isLocalMission) {
+    if (isDemoMode) {
       const ratings = storageService.getRatings();
       if (ratings.some(r => r.missionId === missionId)) {
         throw new Error('Vous avez déjà noté cette mission');
@@ -29,7 +26,6 @@ export const ratingService = {
       return newRating;
     }
 
-    // 2. Supabase
     const { data, error } = await supabase
       .from('ratings')
       .insert({
@@ -59,31 +55,18 @@ export const ratingService = {
   },
 
   async getByPro(proId) {
-    // 1. Local Ratings
-    const localRatings = storageService.getRatings().filter(r => r.proId === proId);
-
-    // 2. Supabase Ratings
-    try {
-      const { data, error } = await supabase
-        .from('ratings')
-        .select('*')
-        .eq('pro_id', proId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      const remotes = (data || []).map(r => ({
-        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
-        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
-      }));
-      return [...localRatings, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } catch {
-      return localRatings;
-    }
+    if (isDemoMode) return storageService.getRatings().filter(r => r.proId === proId);
+    const { data, error } = await supabase.from('ratings').select('*')
+      .eq('pro_id', proId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map(r => ({
+      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+    }));
   },
 
   async getByMission(missionId) {
-    const local = storageService.getRatings().find(r => r.missionId === missionId);
-    if (local) return local;
+    if (isDemoMode) return storageService.getRatings().find(r => r.missionId === missionId) || null;
 
     const { data } = await supabase
       .from('ratings')
@@ -99,6 +82,14 @@ export const ratingService = {
   },
 
   async getProAverageRating(proId) {
+    if (!isDemoMode) {
+      const { data, error } = await supabase.rpc('get_public_professionals', { p_profile_id: proId });
+      if (error) throw new Error(error.message);
+      return {
+        average: Number(data?.[0]?.rating_average || 0),
+        count: Number(data?.[0]?.rating_count || 0),
+      };
+    }
     const ratings = await this.getByPro(proId);
     if (ratings.length === 0) return { average: 0, count: 0 };
     const sum = ratings.reduce((s, r) => s + r.score, 0);
@@ -106,45 +97,22 @@ export const ratingService = {
   },
 
   async getAll() {
-    const localRatings = storageService.getRatings();
-    try {
-      const { data } = await supabase.from('ratings').select('*').order('created_at', { ascending: false });
-      const remotes = (data || []).map(r => ({
-        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
-        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
-      }));
-      return [...localRatings, ...remotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } catch {
-      return localRatings;
-    }
+    if (isDemoMode) return storageService.getRatings();
+    const { data, error } = await supabase.from('ratings').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map(r => ({
+      id: r.id, missionId: r.mission_id, patientId: r.patient_id,
+      proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
+    }));
   },
 
   async getAllProRatings() {
-    const localRatings = storageService.getRatings();
-    try {
-      const { data, error } = await supabase.from('ratings').select('*');
-      if (error) throw error;
-      const remotes = (data || []).map(r => ({
-        id: r.id, missionId: r.mission_id, patientId: r.patient_id,
-        proId: r.pro_id, score: r.score, comment: r.comment, createdAt: r.created_at,
-      }));
-
-      const all = [...localRatings, ...remotes];
-      const proMap = {};
-      all.forEach(r => {
-        if (!proMap[r.proId]) proMap[r.proId] = [];
-        proMap[r.proId].push(r);
-      });
+    const ratings = await this.getAll();
+    return ratings.reduce((proMap, rating) => {
+      if (!proMap[rating.proId]) proMap[rating.proId] = [];
+      proMap[rating.proId].push(rating);
       return proMap;
-    } catch (err) {
-      console.warn("Supabase fetch failed in getAllProRatings, returning locals only", err);
-      const proMap = {};
-      localRatings.forEach(r => {
-        if (!proMap[r.proId]) proMap[r.proId] = [];
-        proMap[r.proId].push(r);
-      });
-      return proMap;
-    }
+    }, {});
   },
 };
 

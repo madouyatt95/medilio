@@ -7,11 +7,24 @@ import missionService from '../../services/missionService';
 import { CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
 import InteractiveMap from '../../components/InteractiveMap';
+import { LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { withTimeout } from '../../utils/async';
 import {
   MapPin, Calendar, Clock, Search,
   Navigation, List, Map as MapIcon, ChevronRight,
   ArrowLeft, Crosshair
 } from 'lucide-react';
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+    * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default function MissionRadar() {
   const { user } = useAuth();
@@ -22,6 +35,8 @@ export default function MissionRadar() {
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
   const [highlightedMission, setHighlightedMission] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Filters
   const [cityFilter, setCityFilter] = useState('');
@@ -36,17 +51,20 @@ export default function MissionRadar() {
   useEffect(() => {
     async function loadMissions() {
       try {
-        const data = await missionService.getOpenMissions();
+        setLoading(true);
+        setLoadError('');
+        const data = await withTimeout(missionService.getOpenMissions());
         setMissions(data);
         setFiltered(data);
-      } catch (err) {
+      } catch (error) {
+        setLoadError(error.message || 'Impossible de charger les missions disponibles.');
         showToast('Erreur lors du chargement des missions', 'error');
       } finally {
         setLoading(false);
       }
     }
-    loadMissions();
-  }, []);
+    void loadMissions();
+  }, [showToast, reloadKey]);
 
   // API Gouv for city suggestions
   useEffect(() => {
@@ -91,31 +109,18 @@ export default function MissionRadar() {
     );
   };
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
   // Filter logic
   useEffect(() => {
     let result = [...missions];
     const origin = selectedCityCoords || userCoords;
 
     if (origin) {
-      result = result.filter(m => {
+      result = result.flatMap(m => {
         if (m.address?.lat && m.address?.lng) {
           const dist = calculateDistance(origin.lat, origin.lng, m.address.lat, m.address.lng);
-          m.computedDistance = dist;
-          return dist <= radiusFilter;
+          return dist <= radiusFilter ? [{ ...m, computedDistance: dist }] : [];
         }
-        return true;
+        return [m];
       });
     }
 
@@ -134,7 +139,7 @@ export default function MissionRadar() {
       lng: m.address?.lng || 2.3522,
       title: getCareLabel(m.careType),
       missionId: m.id,
-      color: m.applicants?.some(a => a.proId === user?.id) ? '#10B981' : '#06B6D4'
+      color: (m.hasApplied || m.applicants?.some(a => a.proId === user?.id)) ? '#10B981' : '#06B6D4'
     }));
 
     if (userCoords) {
@@ -169,7 +174,17 @@ export default function MissionRadar() {
     };
   };
 
-  if (loading) return <div className="loading-screen" style={{ background: '#0f172a' }}><div className="spinner spinner-lg" /></div>;
+  if (loading) return <LoadingState label="Recherche des missions disponibles…" />;
+  if (loadError) {
+    return (
+      <LoadErrorState
+        title="Radar momentanément indisponible"
+        message={loadError}
+        onBack={() => navigate('/pro/dashboard')}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   return (
     <div className="page-container" style={{ background: '#0f172a', minHeight: '100vh', color: 'white', position: 'relative' }}>

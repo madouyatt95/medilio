@@ -1,6 +1,48 @@
 // ── Shared UI Components ──
-import { useState, useRef, useEffect } from 'react';
-import { Star, Upload, X, File, Image, ChevronLeft, ChevronRight, MessageCircle, Send } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Star, Upload, X, File, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
+
+export function LoadingState({ label = 'Chargement en cours…', compact = false }) {
+  return (
+    <div role="status" aria-live="polite" style={{
+      minHeight: compact ? 120 : 280,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 'var(--space-3)', padding: 'var(--space-6)', color: 'var(--text-secondary)',
+    }}>
+      <div className="spinner spinner-lg" />
+      <span style={{ fontSize: 'var(--font-sm)', fontWeight: 600 }}>{label}</span>
+    </div>
+  );
+}
+
+export function LoadErrorState({
+  title = 'Chargement impossible',
+  message = 'Une erreur est survenue. Vérifiez votre connexion puis réessayez.',
+  onRetry,
+  onBack,
+}) {
+  return (
+    <div className="page-container" role="alert" style={{
+      minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div className="card" style={{ maxWidth: 460, width: '100%', textAlign: 'center', padding: 'var(--space-6)' }}>
+        <AlertCircle size={36} style={{ color: 'var(--color-danger)', margin: '0 auto var(--space-3)' }} />
+        <h2 style={{ fontSize: 'var(--font-lg)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>{title}</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)', lineHeight: 1.5, marginBottom: 'var(--space-5)' }}>
+          {message}
+        </p>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {onBack && <button className="btn btn-secondary" onClick={onBack}>Retour</button>}
+          {onRetry && (
+            <button className="btn btn-primary" onClick={onRetry}>
+              <RefreshCw size={16} /> Réessayer
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Skeleton Loading ──
 export function Skeleton({ width = '100%', height = 16, borderRadius = 8, className = '' }) {

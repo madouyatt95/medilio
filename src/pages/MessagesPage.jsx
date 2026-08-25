@@ -5,42 +5,52 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import chatService from '../services/chatService';
 import missionService from '../services/missionService';
-import authService from '../services/authService';
-import { Shield, ChevronRight, MessageSquare, Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { Shield, MessageSquare, Bell, CheckCheck } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
+import { LoadingState, LoadErrorState } from '../components/SharedComponents';
+import { withTimeout } from '../utils/async';
 
 export default function MessagesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { notifications, markAsRead, markAllAsRead, showToast } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'notifications'
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadConversations() {
       if (!user) return;
       try {
         setLoading(true);
+        setLoadError('');
         // Fetch all user missions to find associated chats
         let userMissions = [];
         if (user.role === 'patient') {
-          userMissions = await missionService.getByPatient(user.id);
+          userMissions = await withTimeout(missionService.getByPatient(user.id));
         } else if (user.role === 'professional') {
-          userMissions = await missionService.getByProfessional(user.id);
+          userMissions = await withTimeout(missionService.getByProfessional(user.id));
+        } else if (user.role === 'establishment') {
+          userMissions = await withTimeout(missionService.getByEstablishment(user.id));
         }
-        
-        const convos = await chatService.getUserConversations(user.id, userMissions);
-        setConversations(convos);
+
+        const convos = await withTimeout(chatService.getUserConversations(user.id, userMissions));
+        if (!cancelled) setConversations(convos);
       } catch (err) {
         console.error('Error fetching conversations:', err);
+        if (!cancelled) setLoadError(err.message || 'Impossible de charger les conversations.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadConversations();
-  }, [user]);
+    void loadConversations();
+    return () => { cancelled = true; };
+  }, [user, reloadKey]);
 
   const handleConversationClick = (convo) => {
     navigate(`/chat/${convo.missionId}`);
@@ -51,7 +61,7 @@ export default function MessagesPage() {
     if (!mission) return { name: 'Discussion', avatar: null };
 
     // If I am patient, recipient is pro
-    if (user.role === 'patient') {
+    if (user.role === 'patient' || user.role === 'establishment') {
       return {
         name: mission.assignedProName || 'Infirmier',
         avatar: null // Default icon
@@ -156,9 +166,13 @@ export default function MessagesPage() {
       {activeTab === 'conversations' && (
         <div>
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-8) 0' }}>
-              <div className="spinner" />
-            </div>
+            <LoadingState compact label="Chargement des conversations…" />
+          ) : loadError ? (
+            <LoadErrorState
+              title="Conversations indisponibles"
+              message={loadError}
+              onRetry={() => setReloadKey(key => key + 1)}
+            />
           ) : conversations.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 'var(--space-10) var(--space-4)', color: 'var(--text-secondary)' }}>
               <MessageSquare size={36} style={{ opacity: 0.3, marginBottom: 'var(--space-3)' }} />
@@ -255,7 +269,7 @@ export default function MessagesPage() {
           }}>
             <Shield size={20} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
             <div style={{ fontSize: '11px', fontWeight: 600, lineHeight: '1.4' }}>
-              <strong>Vos échanges sont sécurisés.</strong> Medilio protège vos données de santé conformément au RGPD.
+              <strong>Vos échanges sont cloisonnés.</strong> Seuls les participants autorisés à la mission peuvent accéder à cette conversation.
             </div>
           </div>
         </div>

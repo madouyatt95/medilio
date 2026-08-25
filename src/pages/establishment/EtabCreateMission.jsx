@@ -4,19 +4,24 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import missionService from '../../services/missionService';
+import managedPatientService from '../../services/managedPatientService';
+import documentService from '../../services/documentService';
 import { CARE_TYPES } from '../../utils/constants';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import {
-  ArrowLeft, Send, Home, ClipboardList, Calendar, Clock, User,
-  FileText, AlertTriangle, Upload, X, Plus, ChevronDown
+  ArrowLeft, Send, Home, ClipboardList, User,
+  FileText, AlertTriangle, Upload, X, ChevronDown
 } from 'lucide-react';
 
 export default function EtabCreateMission() {
   const { user } = useAuth();
-  const { addToast } = useNotifications();
+  const { showToast } = useNotifications();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [managedPatients, setManagedPatients] = useState([]);
+  const [managedPatientId, setManagedPatientId] = useState(searchParams.get('patient') || '');
   const [step, setStep] = useState(1);
 
   const isDischargeDefault = searchParams.get('mode') === 'discharge';
@@ -47,29 +52,69 @@ export default function EtabCreateMission() {
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        update('documents', [...form.documents, {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-          name: file.name, type: file.type, size: file.size,
-          data: ev.target?.result, storageType: 'local'
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+  useEffect(() => {
+    if (!user?.id) return;
+    managedPatientService.getByEstablishment(user.id)
+      .then(patients => {
+        setManagedPatients(patients);
+        const selected = patients.find(patient => patient.id === managedPatientId);
+        if (selected) {
+          setForm(current => ({
+            ...current,
+            patientName: `${selected.firstName} ${selected.lastName}`,
+            patientAge: selected.patientAge || '',
+            patientConditions: selected.patientConditions || '',
+            address: selected.address || current.address,
+          }));
+        }
+      })
+      .catch(error => showToast(error.message, 'error'));
+  }, [user?.id, managedPatientId, showToast]);
+
+  const selectManagedPatient = (patientId) => {
+    setManagedPatientId(patientId);
+    const selected = managedPatients.find(patient => patient.id === patientId);
+    if (!selected) return;
+    setForm(current => ({
+      ...current,
+      patientName: `${selected.firstName} ${selected.lastName}`,
+      patientAge: selected.patientAge || '',
+      patientConditions: selected.patientConditions || '',
+      address: selected.address || current.address,
+    }));
   };
 
-  const removeDoc = (id) => {
-    update('documents', form.documents.filter(d => d.id !== id));
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const uploaded = await documentService.uploadMany(files, user.id);
+      setForm(current => ({ ...current, documents: [...current.documents, ...uploaded] }));
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeDoc = async (id) => {
+    const document = form.documents.find(item => item.id === id);
+    if (document) {
+      try {
+        await documentService.delete(document);
+      } catch (error) {
+        showToast(`Suppression impossible : ${error.message}`, 'error');
+        return;
+      }
+    }
+    setForm(current => ({ ...current, documents: current.documents.filter(item => item.id !== id) }));
   };
 
   const handleSubmit = async () => {
     if (!form.careType || !form.patientName || !form.scheduledDate) {
-      addToast('Veuillez remplir les champs obligatoires', 'error');
+      showToast('Veuillez remplir les champs obligatoires', 'error');
       return;
     }
     setLoading(true);
@@ -90,15 +135,16 @@ export default function EtabCreateMission() {
         documents: form.documents,
         // Establishment-specific
         createdByEstablishmentId: user.id,
+        managedPatientId: managedPatientId || null,
         dischargeMode: form.dischargeMode,
         dischargeDate: form.dischargeDate || null,
         medicalNotes: form.medicalNotes || '',
       });
 
-      addToast(form.dischargeMode ? 'Mission RAD créée avec succès !' : 'Mission créée avec succès !', 'success');
+      showToast(form.dischargeMode ? 'Mission RAD créée avec succès !' : 'Mission créée avec succès !', 'success');
       navigate('/etab/dashboard');
     } catch (err) {
-      addToast('Erreur: ' + err.message, 'error');
+      showToast('Erreur: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -175,6 +221,23 @@ export default function EtabCreateMission() {
           <h2 style={{ fontSize: 'var(--font-md)', fontWeight: 700, marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <User size={20} color="var(--color-primary)" /> Informations patient
           </h2>
+
+          {managedPatients.length > 0 && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="managed-patient">Patient suivi par l’établissement</label>
+              <select
+                id="managed-patient"
+                className="form-input form-select"
+                value={managedPatientId}
+                onChange={event => selectManagedPatient(event.target.value)}
+              >
+                <option value="">Saisie ponctuelle</option>
+                {managedPatients.map(patient => (
+                  <option key={patient.id} value={patient.id}>{patient.firstName} {patient.lastName}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Nom du patient *</label>
@@ -317,8 +380,8 @@ export default function EtabCreateMission() {
               borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-secondary)',
               fontSize: 'var(--font-sm)', fontWeight: 600
             }}>
-              <Upload size={20} /> Ajouter un document
-              <input type="file" accept="image/*,.pdf" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
+              <Upload size={20} /> {uploading ? 'Téléversement…' : 'Ajouter un document'}
+              <input type="file" accept="image/jpeg,image/png,image/webp,.pdf,.doc,.docx" multiple disabled={uploading} style={{ display: 'none' }} onChange={handleFileUpload} />
             </label>
             {form.documents.length > 0 && (
               <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -366,8 +429,8 @@ export default function EtabCreateMission() {
                 borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-secondary)',
                 fontSize: 'var(--font-sm)', fontWeight: 600
               }}>
-                <Upload size={20} /> Ajouter un document
-                <input type="file" accept="image/*,.pdf" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
+                <Upload size={20} /> {uploading ? 'Téléversement…' : 'Ajouter un document'}
+                <input type="file" accept="image/jpeg,image/png,image/webp,.pdf,.doc,.docx" multiple disabled={uploading} style={{ display: 'none' }} onChange={handleFileUpload} />
               </label>
               {form.documents.length > 0 && (
                 <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -402,7 +465,7 @@ export default function EtabCreateMission() {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-block" onClick={handleSubmit} disabled={loading}
+          <button className="btn btn-primary btn-block" onClick={handleSubmit} disabled={loading || uploading}
             style={form.dischargeMode ? { background: 'var(--color-secondary)' } : {}}>
             {loading ? <span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : (
               <>

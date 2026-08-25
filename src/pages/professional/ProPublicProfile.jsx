@@ -2,40 +2,56 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { ratingService } from '../../services/ratingService';
-import { RatingDisplay } from '../../components/SharedComponents';
-import { ArrowLeft, Star, MapPin, Briefcase, Award, MessageCircle, Calendar } from 'lucide-react';
-import { formatRelative } from '../../utils/dateUtils';
+import { RatingDisplay, LoadingState, LoadErrorState } from '../../components/SharedComponents';
+import { ArrowLeft, MapPin, Briefcase, Award } from 'lucide-react';
+import { withTimeout } from '../../utils/async';
 
 export default function ProPublicProfile() {
   const { proId } = useParams();
   const navigate = useNavigate();
   const [pro, setPro] = useState(null);
-  const [ratings, setRatings] = useState([]);
   const [stats, setStats] = useState({ average: 0, count: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       try {
-        const profile = await authService.getProfile(proId);
+        setLoading(true);
+        setLoadError('');
+        const profile = await withTimeout(authService.getPublicProfessional(proId));
         if (profile) {
-          setPro(profile);
-          const proRatings = await ratingService.getByPro(proId);
-          setRatings(proRatings);
-          const proStats = await ratingService.getProAverageRating(proId);
-          setStats(proStats);
+          const proStats = await withTimeout(ratingService.getProAverageRating(proId));
+          if (!cancelled) {
+            setPro(profile);
+            setStats(proStats);
+          }
         }
       } catch (err) {
         console.error(err);
+        if (!cancelled) setLoadError(err.message || 'Impossible de charger ce profil.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    loadData();
-  }, [proId]);
+    void loadData();
+    return () => { cancelled = true; };
+  }, [proId, reloadKey]);
 
-  if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
-  if (!pro) return <div className="page-container">Professionnel non trouvé</div>;
+  if (loading) return <LoadingState label="Chargement du profil…" />;
+  if (loadError || !pro) {
+    return (
+      <LoadErrorState
+        title="Profil inaccessible"
+        message={loadError || 'Professionnel non trouvé.'}
+        onBack={() => navigate(-1)}
+        onRetry={() => setReloadKey(key => key + 1)}
+      />
+    );
+  }
 
   return (
     <div className="page-container animate-fadeIn">
@@ -76,8 +92,8 @@ export default function ProPublicProfile() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-3)' }}>
           <div style={{ color: 'var(--color-primary)', marginBottom: 4 }}><Briefcase size={20} /></div>
-          <div style={{ fontWeight: 800, fontSize: 'var(--font-lg)' }}>Expérimenté</div>
-          <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Inscrit {formatRelative(pro.createdAt)}</div>
+          <div style={{ fontWeight: 800, fontSize: 'var(--font-lg)' }}>Profil vérifié</div>
+          <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>Compte validé par Medilio</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-3)' }}>
           <div style={{ color: 'var(--color-success)', marginBottom: 4 }}><MapPin size={20} /></div>
@@ -97,25 +113,9 @@ export default function ProPublicProfile() {
       {/* Ratings & Reviews */}
       <div className="section">
         <div className="section-title">Avis et notes ({stats.count})</div>
-        {ratings.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 'var(--space-6)' }}>
-            Aucun avis pour le moment
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {ratings.map(r => (
-              <div key={r.id} className="card" style={{ padding: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
-                  <RatingDisplay average={r.score} count={0} size={14} />
-                  <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-tertiary)' }}>{formatRelative(r.createdAt)}</span>
-                </div>
-                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-primary)', margin: 0 }}>
-                  {r.comment || "Aucun commentaire laissé."}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="card" style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 'var(--space-6)' }}>
+          La note agrégée est affichée sans exposer les commentaires privés.
+        </div>
       </div>
 
       <div style={{ height: 'var(--space-10)' }} />
