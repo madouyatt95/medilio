@@ -5,6 +5,10 @@ const migration = readFileSync(
   new URL('../supabase/migrations/20260825190000_initial_secure_schema.sql', import.meta.url),
   'utf8',
 ).toLowerCase();
+const surfaceMigration = readFileSync(
+  new URL('../supabase/migrations/20260825202000_reduce_public_surface.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
 
 describe('Supabase security baseline', () => {
   it('enables RLS for every application table', () => {
@@ -47,5 +51,21 @@ describe('Supabase security baseline', () => {
     expect(migration).toContain('revoke all on function public.accept_mission_applicant(uuid, uuid) from public, anon');
     expect(migration).toContain('revoke all on function public.list_available_missions() from public, anon');
     expect(migration).toContain('grant execute on function public.accept_mission_applicant(uuid, uuid) to authenticated');
+  });
+
+  it('does not expose internal trigger functions through the API', () => {
+    for (const functionName of [
+      'handle_new_user', 'normalize_chat_message', 'notify_chat_message',
+      'notify_mission_application', 'notify_mission_assignment',
+    ]) {
+      expect(surfaceMigration).toContain(
+        `revoke all on function public.${functionName}() from public, anon, authenticated`,
+      );
+    }
+  });
+
+  it('prevents anonymous listing of all avatar objects', () => {
+    expect(migration).not.toContain('create policy avatars_public_read');
+    expect(surfaceMigration).toContain('drop policy if exists avatars_public_read on storage.objects');
   });
 });

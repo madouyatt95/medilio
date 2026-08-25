@@ -1053,8 +1053,6 @@ on conflict (id) do update set
   allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists avatars_public_read on storage.objects;
-create policy avatars_public_read on storage.objects
-for select using (bucket_id = 'avatars');
 
 drop policy if exists avatars_insert_own_folder on storage.objects;
 create policy avatars_insert_own_folder on storage.objects
@@ -1107,6 +1105,13 @@ revoke all on function public.get_public_professionals(uuid) from public, anon;
 revoke all on function public.accept_mission_applicant(uuid, uuid) from public, anon;
 revoke all on function public.reject_mission_applicant(uuid, uuid) from public, anon;
 revoke all on function public.update_mission_status(uuid, text) from public, anon;
+
+-- Trigger functions are invoked by PostgreSQL, never through the public API.
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+revoke all on function public.normalize_chat_message() from public, anon, authenticated;
+revoke all on function public.notify_chat_message() from public, anon, authenticated;
+revoke all on function public.notify_mission_application() from public, anon, authenticated;
+revoke all on function public.notify_mission_assignment() from public, anon, authenticated;
 
 grant execute on function public.current_profile_role() to authenticated;
 grant execute on function public.is_active_user() to authenticated;
