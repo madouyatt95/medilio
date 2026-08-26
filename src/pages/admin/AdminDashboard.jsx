@@ -1,23 +1,45 @@
 // ── Redesigned Admin Dashboard (Desktop High-Fidelity App Layout) ──
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/authService';
 import missionService from '../../services/missionService';
 import ratingService from '../../services/ratingService';
 import { MISSION_STATUS_LABELS, CARE_TYPES } from '../../utils/constants';
 import { formatDate } from '../../utils/dateUtils';
+import { withTimeout } from '../../utils/async';
 import { RatingDisplay } from '../../components/SharedComponents';
 import {
   Home, Users, ClipboardList, Shield, Heart, CreditCard,
-  Star, MessageSquare, Settings, Headphones, Download,
-  ChevronDown, Bell, CheckCircle, Ban, Trash2, X,
+  Star, MessageSquare, Settings, Download,
+  Bell, CheckCircle, Ban, Trash2, X,
   ShieldAlert, ArrowUpDown, TrendingUp, Menu, LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo-medilio.png';
 
+const MISSION_BADGE_STYLES = {
+  open: { background: '#EFF6FF', color: '#1D4ED8' },
+  assigned: { background: '#FEF3C7', color: '#B45309' },
+  in_progress: { background: '#E0E7FF', color: '#4338CA' },
+  completed: { background: '#D1FAE5', color: '#065F46' },
+  cancelled: { background: '#FEE2E2', color: '#B91C1C' },
+};
+
+const ROLE_LABELS = {
+  patient: 'Patient',
+  professional: 'Intervenant',
+  establishment: 'Établissement',
+  admin: 'Administrateur',
+};
+
+function toCsvCell(value) {
+  const text = String(value ?? '');
+  const formulaSafeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${formulaSafeText.replaceAll('"', '""')}"`;
+}
+
 export default function AdminDashboard() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview'); // Active sidebar tab
   const [users, setUsers] = useState([]);
@@ -27,6 +49,8 @@ export default function AdminDashboard() {
   const [showVerifyModal, setShowVerifyModal] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [timeframe, setTimeframe] = useState('30_days');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Responsiveness states
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -40,37 +64,62 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load real data from DB
-  useEffect(() => {
-    async function load() {
-      try {
-        const dbUsers = await authService.getAllUsers();
-        const dbMissions = await missionService.getAll();
-        const dbRatings = await ratingService.getAll();
-        const dbProRatings = await ratingService.getAllProRatings();
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const [dbUsers, dbMissions, dbRatings] = await withTimeout(Promise.all([
+        authService.getAllUsers(),
+        missionService.getAll(),
+        ratingService.getAll(),
+      ]), {
+        timeout: 12_000,
+        message: "Le chargement de l'administration a expiré.",
+      });
 
-        setUsers(dbUsers);
-        setMissions(dbMissions);
-        setRatings(dbRatings);
+      setUsers(dbUsers);
+      setMissions(dbMissions);
+      setRatings(dbRatings);
 
-        const pAverages = {};
-        for (const [proId, rs] of Object.entries(dbProRatings)) {
-          if (rs && rs.length > 0) {
-            const sum = rs.reduce((acc, r) => acc + r.score, 0);
-            pAverages[proId] = { average: Math.round((sum / rs.length) * 10) / 10, count: rs.length };
-          }
+      const ratingsByProfessional = dbRatings.reduce((result, rating) => {
+        if (!result[rating.proId]) result[rating.proId] = [];
+        result[rating.proId].push(rating);
+        return result;
+      }, {});
+      const pAverages = {};
+      for (const [proId, proRatingList] of Object.entries(ratingsByProfessional)) {
+        if (proRatingList.length > 0) {
+          const sum = proRatingList.reduce((acc, rating) => acc + rating.score, 0);
+          pAverages[proId] = {
+            average: Math.round((sum / proRatingList.length) * 10) / 10,
+            count: proRatingList.length,
+          };
         }
-        setProRatings(pAverages);
-      } catch (err) {
-        console.error("Error loading admin dashboard stats:", err);
       }
+      setProRatings(pAverages);
+    } catch (err) {
+      console.error("Error loading admin dashboard stats:", err);
+      setLoadError("Les données d'administration n'ont pas pu être chargées. Vérifiez la connexion puis réessayez.");
+    } finally {
+      setIsLoading(false);
     }
-    load();
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const patients = users.filter(u => u.role === 'patient');
-  const pros = users.filter(u => u.role === 'professional');
-  const verifiedPros = pros.filter(p => p.professionalInfo?.verified);
+  const isAccountVerified = (account) => account.role === 'professional'
+    ? Boolean(account.professionalInfo?.verified)
+    : account.role === 'establishment'
+      ? Boolean(account.establishmentInfo?.verified)
+      : false;
+  const verifiableAccounts = users.filter(account => ['professional', 'establishment'].includes(account.role));
+  const verifiedAccounts = verifiableAccounts.filter(isAccountVerified);
+  const pendingVerifications = verifiableAccounts.filter(account => !isAccountVerified(account));
+  const adminDisplayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || 'Administrateur Medilio';
+  const adminInitials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'AD';
   
   const getCareLabel = (type) => CARE_TYPES.find(c => c.id === type)?.label || type;
 
@@ -79,10 +128,11 @@ export default function AdminDashboard() {
   const familyExpenses = completedMissions.reduce((s, m) => s + (Number(m.estimatedCost) || 0), 0);
   const platformCommissions = familyExpenses * 0.15;
   const proRevenues = familyExpenses * 0.85;
-  const activityBuckets = Array.from({ length: 27 }, (_, index) => {
+  const activityWindowDays = timeframe === '7_days' ? 7 : 30;
+  const activityBuckets = Array.from({ length: activityWindowDays }, (_, index) => {
     const day = new Date();
     day.setHours(0, 0, 0, 0);
-    day.setDate(day.getDate() - (26 - index));
+    day.setDate(day.getDate() - (activityWindowDays - 1 - index));
     const nextDay = new Date(day);
     nextDay.setDate(nextDay.getDate() + 1);
     return missions.filter(mission => {
@@ -91,6 +141,12 @@ export default function AdminDashboard() {
     }).length;
   });
   const maxBucket = Math.max(...activityBuckets, 1);
+  const activityAxisLabels = Array.from({ length: 5 }, (_, index) => {
+    const daysAgo = Math.round((activityWindowDays - 1) * (1 - index / 4));
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  });
 
   // Calcul des métriques d'activité
   const totalMissions = missions.length;
@@ -98,6 +154,10 @@ export default function AdminDashboard() {
   const inProgressMissions = missions.filter(m => m.status === 'in_progress');
   const openMissions = missions.filter(m => m.status === 'open');
   const cancelledMissions = missions.filter(m => m.status === 'cancelled');
+  const recentMissions = [...missions]
+    .sort((a, b) => new Date(b.createdAt || b.scheduledDate).getTime() - new Date(a.createdAt || a.scheduledDate).getTime())
+    .slice(0, 4);
+  const alertCount = Number(pendingVerifications.length > 0) + Number(openMissions.length > 0);
 
   const completionRate = totalMissions > 0 ? ((completedMissions.length / totalMissions) * 100).toFixed(0) : 0;
 
@@ -130,25 +190,44 @@ export default function AdminDashboard() {
 
   const handleToggleUser = async (userId) => {
     if (window.confirm("Modifier le statut d'activation de cet utilisateur ?")) {
-      await authService.toggleUserStatus(userId);
-      setUsers(await authService.getAllUsers());
+      try {
+        setLoadError('');
+        await authService.toggleUserStatus(userId);
+        setUsers(await authService.getAllUsers());
+      } catch (err) {
+        console.error('Error updating user status:', err);
+        setLoadError("Le statut de l'utilisateur n'a pas pu être modifié.");
+      }
     }
   };
 
   const handleDeleteMission = async (missionId) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette mission ?")) {
-      await missionService.delete(missionId);
-      setMissions(await missionService.getAll());
+      try {
+        setLoadError('');
+        await missionService.delete(missionId);
+        setMissions(await missionService.getAll());
+      } catch (err) {
+        console.error('Error deleting mission:', err);
+        setLoadError("La mission n'a pas pu être supprimée.");
+      }
     }
   };
 
-  const handleVerifyPro = async (userId) => {
-    const account = users.find(item => item.id === userId);
-    if (account && ['professional', 'establishment'].includes(account.role)) {
-      await authService.toggleVerification(userId);
-      setUsers(await authService.getAllUsers());
+  const handleToggleVerification = async (userId) => {
+    try {
+      setLoadError('');
+      const account = users.find(item => item.id === userId);
+      if (account && ['professional', 'establishment'].includes(account.role)) {
+        await authService.toggleVerification(userId);
+        setUsers(await authService.getAllUsers());
+      }
+    } catch (err) {
+      console.error('Error updating verification status:', err);
+      setLoadError("Le statut de vérification n'a pas pu être modifié.");
+    } finally {
+      setShowVerifyModal(null);
     }
-    setShowVerifyModal(null);
   };
 
   // CSV Export
@@ -159,13 +238,32 @@ export default function AdminDashboard() {
     if (type === 'users') {
       csv = 'Prénom,Nom,Email,Rôle,Téléphone,Ville,Inscrit le,Vérifié\n';
       users.forEach(u => {
-        csv += `${u.firstName},${u.lastName},${u.email},${u.role},${u.phone || ''},${u.address?.city || ''},${formatDate(u.createdAt)},${u.professionalInfo?.verified ? 'Oui' : 'Non'}\n`;
+        csv += [
+          u.firstName,
+          u.lastName,
+          u.email,
+          ROLE_LABELS[u.role] || u.role,
+          u.phone,
+          u.address?.city,
+          formatDate(u.createdAt),
+          ['professional', 'establishment'].includes(u.role) && isAccountVerified(u) ? 'Oui' : 'Non',
+        ].map(toCsvCell).join(',') + '\n';
       });
       filename = 'medilio_utilisateurs.csv';
     } else {
       csv = 'Type,Ville,Date,Heure,Patient,Statut,Candidatures,Coût,Créée le\n';
       missions.forEach(m => {
-        csv += `${getCareLabel(m.careType)},${m.address?.city || ''},${m.scheduledDate},${m.scheduledTime},${m.patientInfo?.name || ''},${MISSION_STATUS_LABELS[m.status]},${m.applicants?.length || 0},${m.estimatedCost || 0}€,${formatDate(m.createdAt)}\n`;
+        csv += [
+          getCareLabel(m.careType),
+          m.address?.city,
+          m.scheduledDate,
+          m.scheduledTime,
+          m.patientInfo?.name,
+          MISSION_STATUS_LABELS[m.status] || m.status,
+          m.applicants?.length || 0,
+          `${m.estimatedCost || 0} €`,
+          formatDate(m.createdAt),
+        ].map(toCsvCell).join(',') + '\n';
       });
       filename = 'medilio_missions.csv';
     }
@@ -268,6 +366,8 @@ export default function AdminDashboard() {
             </div>
             {isMobile && (
               <button 
+                type="button"
+                aria-label="Fermer le menu d'administration"
                 onClick={() => setSidebarOpen(false)}
                 style={{
                   background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'
@@ -283,7 +383,7 @@ export default function AdminDashboard() {
             {[
               { id: 'overview', label: "Vue d'ensemble", icon: <Home size={18} /> },
               { id: 'users', label: "Utilisateurs", icon: <Users size={18} /> },
-              { id: 'verification', label: "Intervenants", icon: <Shield size={18} /> },
+              { id: 'verification', label: "Vérifications", icon: <Shield size={18} /> },
               { id: 'missions', label: "Missions", icon: <ClipboardList size={18} /> },
               { id: 'patients', label: "Patients", icon: <Heart size={18} /> },
               { id: 'billing', label: "Facturation", icon: <CreditCard size={18} /> },
@@ -326,35 +426,17 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        {/* Support Box */}
+        {/* Access scope reminder */}
         <div style={{
           background: '#F8FAFC',
           borderRadius: '16px',
           padding: '16px',
           border: '1px solid #F1F5F9'
         }}>
-          <div style={{ color: '#2563EB', marginBottom: '8px' }}>
-            <Headphones size={20} />
-          </div>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Besoin d'aide ?</h4>
-          <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: '#64748B', lineHeight: '1.4' }}>
-            Notre équipe support est disponible 7j/7.
+          <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Accès administrateur</h4>
+          <p style={{ margin: 0, fontSize: '11px', color: '#64748B', lineHeight: '1.4' }}>
+            Les actions sensibles sont réservées aux comptes disposant du rôle administrateur.
           </p>
-          <button style={{
-            background: 'white',
-            border: '1px solid #E2E8F0',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '11px',
-            fontWeight: 700,
-            color: '#1E293B',
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-          }}>
-            Contacter le support
-          </button>
         </div>
       </aside>
 
@@ -380,6 +462,8 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isMobile && (
               <button 
+                type="button"
+                aria-label="Ouvrir le menu d'administration"
                 onClick={() => setSidebarOpen(true)}
                 style={{
                   background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center'
@@ -393,27 +477,35 @@ export default function AdminDashboard() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px' }}>
             {/* Notification Bell */}
-            <div style={{ position: 'relative', cursor: 'pointer', color: '#64748B' }}>
+            <button
+              type="button"
+              aria-label={alertCount > 0 ? `${alertCount} catégories d'alertes à traiter` : 'Aucune alerte à traiter'}
+              onClick={() => setTab(pendingVerifications.length > 0 ? 'verification' : openMissions.length > 0 ? 'missions' : 'overview')}
+              style={{ position: 'relative', cursor: 'pointer', color: '#64748B', background: 'none', border: 0, padding: '4px', display: 'flex' }}
+            >
               <Bell size={20} />
-              <span style={{
-                position: 'absolute',
-                top: '-2px',
-                right: '-2px',
-                background: '#EF4444',
-                color: 'white',
-                fontSize: '9px',
-                fontWeight: 800,
-                borderRadius: '50%',
-                width: '14px',
-                height: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid white'
-              }}>
-                3
-              </span>
-            </div>
+              {alertCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  background: '#EF4444',
+                  color: 'white',
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  borderRadius: '50%',
+                  minWidth: '14px',
+                  height: '14px',
+                  padding: '0 2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid white'
+                }}>
+                  {alertCount}
+                </span>
+              )}
+            </button>
 
             {/* Profile Avatar / Details */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -430,19 +522,20 @@ export default function AdminDashboard() {
                 justifyContent: 'center',
                 boxShadow: '0 2px 4px rgba(37,99,235,0.1)'
               }}>
-                AM
+                {adminInitials}
               </div>
               {!isMobile && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Admin Medilio</div>
-                  <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 500 }}>Super administrateur</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{adminDisplayName}</div>
+                  <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 500 }}>Administrateur</div>
                 </div>
               )}
-              {!isMobile && <ChevronDown size={14} style={{ color: '#64748B', cursor: 'pointer' }} />}
             </div>
 
             {/* Logout shortcut */}
             <button 
+              type="button"
+              aria-label="Se déconnecter"
               onClick={async () => {
                 await logout();
                 navigate('/login');
@@ -459,6 +552,41 @@ export default function AdminDashboard() {
 
         {/* Dashboard Main Scrollable Body */}
         <div style={{ padding: isMobile ? '16px' : '32px', boxSizing: 'border-box' }}>
+          {isLoading ? (
+            <div role="status" aria-live="polite" style={{
+              minHeight: '240px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              color: '#64748B',
+            }}>
+              <div className="spinner" />
+              <span>Chargement des données d'administration…</span>
+            </div>
+          ) : (
+            <>
+              {loadError && (
+                <div role="alert" style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  marginBottom: '20px',
+                  padding: '14px 16px',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '12px',
+                  background: '#FEF2F2',
+                  color: '#991B1B',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}>
+                  <span>{loadError}</span>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={loadData}>Réessayer</button>
+                </div>
+              )}
           
           {/* ── 1. VUE D'ENSEMBLE (HIGH FIDELITY) ── */}
           {tab === 'overview' && (
@@ -507,7 +635,7 @@ export default function AdminDashboard() {
                 {[
                   { label: "Utilisateurs", value: users.length.toString(), icon: <Users size={18} />, iconBg: '#EFF6FF', iconCol: '#2563EB' },
                   { label: "Missions", value: totalMissions.toString(), icon: <ClipboardList size={18} />, iconBg: '#EEF2F6', iconCol: '#475569' },
-                  { label: "Intervenants vérifiés", value: verifiedPros.length.toString(), icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
+                  { label: "Comptes vérifiés", value: verifiedAccounts.length.toString(), icon: <CheckCircle size={18} />, iconBg: '#ECFDF5', iconCol: '#10B981' },
                   { label: "Valeur estimée", value: `${familyExpenses.toLocaleString('fr-FR')} €`, icon: <TrendingUp size={18} />, iconBg: '#FFFBEB', iconCol: '#F59E0B' },
                 ].map((stat, idx) => (
                   <div key={idx} style={{
@@ -580,43 +708,24 @@ export default function AdminDashboard() {
                   ))}
                 </div>
 
-                {/* SVG Line Spline Chart Drawing */}
-                <div style={{ height: '180px', width: '100%', position: 'relative', marginTop: '10px' }}>
-                  <svg width="100%" height="100%" viewBox="0 0 800 180" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.15"/>
-                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.00"/>
-                      </linearGradient>
-                      <linearGradient id="emeraldGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.12"/>
-                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.00"/>
-                      </linearGradient>
-                    </defs>
-                    {/* Gridlines */}
-                    <line x1="0" y1="30" x2="800" y2="30" stroke="#F1F5F9" strokeWidth="1" />
-                    <line x1="0" y1="75" x2="800" y2="75" stroke="#F1F5F9" strokeWidth="1" />
-                    <line x1="0" y1="120" x2="800" y2="120" stroke="#F1F5F9" strokeWidth="1" />
-                    <line x1="0" y1="160" x2="800" y2="160" stroke="#E2E8F0" strokeWidth="1" />
-
-                    {/* Chart Paths: Blue Spline Curve (Total Volume) */}
-                    <path d="M 0 100 Q 100 60, 200 80 T 400 50 T 600 70 T 800 50" fill="none" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" />
-                    <path d="M 0 100 Q 100 60, 200 80 T 400 50 T 600 70 T 800 50 L 800 160 L 0 160 Z" fill="url(#blueGrad)" />
-
-                    {/* Emerald Spline Curve (Missions count) */}
-                    <path d="M 0 130 Q 100 110, 200 120 T 400 90 T 600 110 T 800 90" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
-                    <path d="M 0 130 Q 100 110, 200 120 T 400 90 T 600 110 T 800 90 L 800 160 L 0 160 Z" fill="url(#emeraldGrad)" />
-
-                    {/* Yellow Spline Curve (Users) */}
-                    <path d="M 0 150 Q 100 135, 200 145 T 400 120 T 600 140 T 800 115" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  {/* Axis dates */}
+                <div aria-label="Missions créées par jour" style={{ height: '180px', width: '100%', marginTop: '10px' }}>
+                  <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: activityWindowDays === 7 ? '12px' : '4px', borderBottom: '1px solid #E2E8F0' }}>
+                    {activityBuckets.map((count, index) => (
+                      <div
+                        key={index}
+                        title={`${count} mission${count > 1 ? 's' : ''}`}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          height: `${Math.max(4, (count / maxBucket) * 100)}%`,
+                          background: count > 0 ? '#2563EB' : '#DBEAFE',
+                          borderRadius: '4px 4px 0 0',
+                        }}
+                      />
+                    ))}
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94A3B8', fontSize: '10px', fontWeight: 600, marginTop: '8px' }}>
-                    <span>12 avr.</span>
-                    <span>19 avr.</span>
-                    <span>28 avr.</span>
-                    <span>3 mai</span>
-                    <span>10 mai</span>
+                    {activityAxisLabels.map(label => <span key={label}>{label}</span>)}
                   </div>
                 </div>
               </div>
@@ -723,25 +832,27 @@ export default function AdminDashboard() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { label: "Injection / Vaccin", loc: "Paris 15e", date: "5 mai 2026", stat: "Assignée", bg: '#FEF3C7', col: '#B45309' },
-                      { label: "Pansement", loc: "Lyon 3e", date: "5 mai 2026", stat: "En cours", bg: '#E0E7FF', col: '#4338CA' },
-                      { label: "Surveillance post-op", loc: "Marseille 8e", date: "4 mai 2026", stat: "Terminée", bg: '#D1FAE5', col: '#065F46' },
-                      { label: "Toilette à domicile", loc: "Toulouse 6e", date: "4 mai 2026", stat: "Assignée", bg: '#FEF3C7', col: '#B45309' },
-                    ].map((mis, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyBreak: 'space-between', justifyContent: 'space-between', borderBottom: i < 3 ? '1px solid #F1F5F9' : 'none', paddingBottom: '10px' }}>
+                    {recentMissions.length === 0 ? (
+                      <p style={{ margin: 0, color: '#64748B', fontSize: '12px' }}>Aucune mission enregistrée.</p>
+                    ) : recentMissions.map((mission, index) => {
+                      const badgeStyle = MISSION_BADGE_STYLES[mission.status] || MISSION_BADGE_STYLES.open;
+                      return (
+                      <div key={mission.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', borderBottom: index < recentMissions.length - 1 ? '1px solid #F1F5F9' : 'none', paddingBottom: '10px' }}>
                         <div>
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{mis.label}</div>
-                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>{mis.loc} · {mis.date}</div>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{getCareLabel(mission.careType)}</div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                            {mission.address?.city || 'Ville non renseignée'} · {formatDate(mission.scheduledDate || mission.createdAt)}
+                          </div>
                         </div>
                         <span style={{
-                          background: mis.bg, color: mis.col, fontSize: '10px',
+                          background: badgeStyle.background, color: badgeStyle.color, fontSize: '10px',
                           fontWeight: 700, padding: '4px 10px', borderRadius: '20px'
                         }}>
-                          {mis.stat}
+                          {MISSION_STATUS_LABELS[mission.status] || mission.status}
                         </span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -750,30 +861,33 @@ export default function AdminDashboard() {
                   background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px',
                   display: 'flex', flexDirection: 'column', gap: '16px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Alertes & notifications</h3>
-                    <button style={{ color: '#2563EB', background: 'none', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Voir tout</button>
-                  </div>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Alertes à traiter</h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { title: `${pros.filter(p => !p.professionalInfo?.verified).length} intervenants en attente`, desc: "Vérifiez les documents en attente de validation.", time: "Il y a 20 min", icon: <Shield size={16} />, bg: '#FEF2F2', col: '#EF4444' },
-                      { title: `${openMissions.length} missions sans réponse`, desc: "Des missions sont en attente d'un intervenant.", time: "Il y a 1 h", icon: <ShieldAlert size={16} />, bg: '#FFF7ED', col: '#EA580C' },
-                      { title: "Maintenance programmée", desc: "Le système sera en maintenance le 12/05 à 02:00.", time: "Il y a 3 h", icon: <CheckCircle size={16} />, bg: '#EFF6FF', col: '#2563EB' },
-                    ].map((al, i) => (
-                      <div key={i} style={{ display: 'flex', gap: '12px', padding: '10px', borderRadius: '12px', background: al.bg }}>
-                        <div style={{
-                          width: '28px', height: '28px', borderRadius: '50%', background: 'white',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: al.col, flexShrink: 0
-                        }}>
-                          {al.icon}
-                        </div>
+                    {alertCount === 0 ? (
+                      <div style={{ display: 'flex', gap: '12px', padding: '12px', borderRadius: '12px', background: '#ECFDF5' }}>
+                        <CheckCircle size={18} style={{ color: '#059669', flexShrink: 0 }} />
                         <div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{al.title}</div>
-                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>{al.desc}</div>
-                          <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', fontWeight: 600 }}>{al.time}</div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#065F46' }}>Aucune alerte en attente</div>
+                          <div style={{ fontSize: '11px', color: '#047857', marginTop: '2px' }}>Les vérifications et missions ouvertes sont à jour.</div>
                         </div>
                       </div>
+                    ) : [
+                      pendingVerifications.length > 0 && { id: 'verification', title: `${pendingVerifications.length} compte${pendingVerifications.length > 1 ? 's' : ''} à vérifier`, desc: "Contrôler les informations avant d'accorder le badge de confiance.", icon: <Shield size={16} />, bg: '#FEF2F2', col: '#EF4444' },
+                      openMissions.length > 0 && { id: 'missions', title: `${openMissions.length} mission${openMissions.length > 1 ? 's' : ''} ouverte${openMissions.length > 1 ? 's' : ''}`, desc: "Consulter les demandes qui n'ont pas encore été attribuées.", icon: <ShieldAlert size={16} />, bg: '#FFF7ED', col: '#EA580C' },
+                    ].filter(Boolean).map(alert => (
+                      <button key={alert.id} type="button" onClick={() => setTab(alert.id)} style={{ display: 'flex', gap: '12px', padding: '10px', borderRadius: '12px', background: alert.bg, border: 0, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
+                        <div style={{
+                          width: '28px', height: '28px', borderRadius: '50%', background: 'white',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: alert.col, flexShrink: 0
+                        }}>
+                          {alert.icon}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{alert.title}</div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>{alert.desc}</div>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -892,7 +1006,9 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedUsers.map(u => {
+                    {sortedUsers.length === 0 ? (
+                      <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>Aucun utilisateur enregistré.</td></tr>
+                    ) : sortedUsers.map(u => {
                       const proR = u.role === 'professional' ? proRatings[u.id] : null;
                       return (
                         <tr key={u.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
@@ -913,7 +1029,7 @@ export default function AdminDashboard() {
                               color: u.role === 'professional' ? '#15803D' : u.role === 'admin' ? '#B45309' : '#1D4ED8',
                               padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700
                             }}>
-                              {u.role}
+                              {ROLE_LABELS[u.role] || u.role}
                             </span>
                           </td>
                           <td style={{ padding: '12px', color: '#64748B', fontSize: '12px' }}>{u.email}</td>
@@ -921,7 +1037,7 @@ export default function AdminDashboard() {
                           <td style={{ padding: '12px' }}>
                             {u.disabled ? (
                               <span style={{ color: '#EF4444', fontWeight: 700, fontSize: '12px' }}>Désactivé</span>
-                            ) : u.role === 'professional' && u.professionalInfo?.verified ? (
+                            ) : ['professional', 'establishment'].includes(u.role) && isAccountVerified(u) ? (
                               <span style={{ color: '#10B981', fontWeight: 700, fontSize: '12px' }}>✓ Vérifié</span>
                             ) : (
                               <span style={{ color: '#3B82F6', fontWeight: 700, fontSize: '12px' }}>Actif</span>
@@ -929,7 +1045,7 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ padding: '12px' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                              {u.role === 'professional' && (
+                              {['professional', 'establishment'].includes(u.role) && (
                                 <button className="btn btn-ghost btn-sm" title="Vérifier" onClick={() => setShowVerifyModal(u)}>
                                   <Shield size={14} />
                                 </button>
@@ -950,34 +1066,38 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ── 3. INTERVENANTS TAB (VÉRIFICATION) ── */}
+          {/* ── 3. ACCOUNT VERIFICATION TAB ── */}
           {tab === 'verification' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
-                <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Demandes de vérification d'infirmiers</h1>
-                <p style={{ color: '#64748B', fontSize: '13px', margin: '4px 0 0 0' }}>Vérifiez et validez les qualifications et pièces justificatives des intervenants.</p>
+                <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Vérification des comptes professionnels</h1>
+                <p style={{ color: '#64748B', fontSize: '13px', margin: '4px 0 0 0' }}>Contrôlez les informations des intervenants et établissements avant d'accorder le badge de confiance.</p>
               </div>
 
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px' }}>En attente de validation</h3>
-                {pros.filter(p => !p.professionalInfo?.verified).length === 0 ? (
+                {pendingVerifications.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px' }}>
                     <CheckCircle size={32} style={{ color: '#10B981', marginBottom: '8px' }} />
                     <p style={{ fontWeight: 600, color: '#1E293B' }}>Tous les dossiers sont validés !</p>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {pros.filter(p => !p.professionalInfo?.verified).map(pro => (
-                      <div key={pro.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
+                    {pendingVerifications.map(account => (
+                      <div key={account.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center' }}>
                         <div>
-                          <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700 }}>{pro.firstName} {pro.lastName}</h4>
-                          <div style={{ fontSize: '11px', color: '#64748B' }}>{pro.email} · {pro.phone}</div>
+                          <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700 }}>
+                            {account.establishmentInfo?.name || `${account.firstName} ${account.lastName}`}
+                          </h4>
+                          <div style={{ fontSize: '11px', color: '#64748B' }}>{account.email} · {account.phone || 'Téléphone non renseigné'}</div>
                           <div style={{ fontSize: '12px', color: '#1E293B', marginTop: '6px' }}>
-                            📍 {pro.professionalInfo?.serviceArea?.city} (Rayon {pro.professionalInfo?.serviceArea?.radius} km)
+                            {account.role === 'establishment'
+                              ? `${account.establishmentInfo?.type || 'Établissement'} · FINESS ${account.establishmentInfo?.finessNumber || 'non renseigné'}`
+                              : `Zone : ${account.professionalInfo?.serviceArea?.city || 'non renseignée'} · Rayon ${account.professionalInfo?.serviceArea?.radius || 0} km`}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn btn-primary btn-sm" onClick={() => handleVerifyPro(pro.id)} style={{ background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => handleToggleVerification(account.id)} style={{ background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                             Valider le profil
                           </button>
                         </div>
@@ -1012,7 +1132,9 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {missions.map(m => (
+                    {missions.length === 0 ? (
+                      <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>Aucune mission enregistrée.</td></tr>
+                    ) : missions.map(m => (
                       <tr key={m.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
                         <td style={{ padding: '12px' }}>
                           <div style={{ fontWeight: 600 }}>{getCareLabel(m.careType)}</div>
@@ -1058,7 +1180,9 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {patients.map(p => (
+                    {patients.length === 0 ? (
+                      <tr><td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>Aucun patient enregistré.</td></tr>
+                    ) : patients.map(p => (
                       <tr key={p.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
                         <td style={{ padding: '12px', fontWeight: 600 }}>{p.firstName} {p.lastName}</td>
                         <td style={{ padding: '12px', color: '#64748B' }}>{p.email}</td>
@@ -1092,7 +1216,9 @@ export default function AdminDashboard() {
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px' }}>Retours d'expérience patients</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {ratings.map(r => (
+                  {ratings.length === 0 ? (
+                    <p style={{ margin: 0, color: '#64748B', fontSize: '12px' }}>Aucun avis enregistré.</p>
+                  ) : ratings.map(r => (
                     <div key={r.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <div style={{ fontWeight: 700, fontSize: '13px' }}>Note : {r.score}/5</div>
@@ -1109,11 +1235,13 @@ export default function AdminDashboard() {
           {/* ── 8. MESSAGES TAB ── */}
           {tab === 'messages' && (
             <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Messagerie Plateforme</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: 800 }}>Messagerie d'administration</h1>
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '32px', textAlign: 'center' }}>
                 <MessageSquare size={36} style={{ color: '#3B82F6', marginBottom: '12px' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0' }}>Centre d'assistance admin</h3>
-                <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>La messagerie est configurée pour suivre et assister les échanges soignants / patients de manière confidentielle.</p>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0' }}>Fonction non activée pour le pilote</h3>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: 0, lineHeight: 1.6 }}>
+                  Les échanges restent accessibles uniquement à leurs participants. Aucun accès global aux conversations n'est ouvert à l'administrateur.
+                </p>
               </div>
             </div>
           )}
@@ -1125,10 +1253,17 @@ export default function AdminDashboard() {
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Sécurité et accès</h3>
                 <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Les rôles, vérifications et désactivations de comptes sont contrôlés depuis les écrans Utilisateurs et Vérifications.
+                  Medilio dispose actuellement d'un seul niveau administrateur. Les comptes, vérifications et désactivations se gèrent depuis les écrans dédiés.
                 </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('users')}>Gérer les utilisateurs</button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('verification')}>Gérer les vérifications</button>
+                </div>
               </div>
             </div>
+          )}
+
+            </>
           )}
 
         </div>
@@ -1140,7 +1275,7 @@ export default function AdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-handle" />
             <div className="modal-header">
-              <h3 className="modal-title">Vérifier l'intervenant</h3>
+              <h3 className="modal-title">Vérifier le compte professionnel</h3>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowVerifyModal(null)}><X size={20} /></button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
@@ -1149,17 +1284,21 @@ export default function AdminDashboard() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px'
               }}>{showVerifyModal.firstName?.[0]}{showVerifyModal.lastName?.[0]}</div>
               <div>
-                <div style={{ fontWeight: 700 }}>{showVerifyModal.firstName} {showVerifyModal.lastName}</div>
+                <div style={{ fontWeight: 700 }}>
+                  {showVerifyModal.establishmentInfo?.name || `${showVerifyModal.firstName} ${showVerifyModal.lastName}`}
+                </div>
                 <div style={{ fontSize: '12px', color: '#64748B' }}>
-                  {showVerifyModal.professionalInfo?.specialties?.join(', ')}
+                  {showVerifyModal.role === 'establishment'
+                    ? showVerifyModal.establishmentInfo?.type || 'Établissement'
+                    : showVerifyModal.professionalInfo?.specialties?.join(', ') || 'Intervenant'}
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowVerifyModal(null)}>Annuler</button>
               <button className="btn btn-primary" style={{ flex: 1, background: '#2563EB', color: 'white' }}
-                onClick={() => handleVerifyPro(showVerifyModal.id)}>
-                <Shield size={16} /> {showVerifyModal.professionalInfo?.verified ? 'Retirer la validation' : 'Valider'}
+                onClick={() => handleToggleVerification(showVerifyModal.id)}>
+                <Shield size={16} /> {isAccountVerified(showVerifyModal) ? 'Retirer la validation' : 'Valider'}
               </button>
             </div>
           </div>

@@ -647,6 +647,12 @@ ul, ol { list-style: none; }
   position: relative;
 }
 
+.bottom-nav-compact .bottom-nav-item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 4px;
+}
+
 .bottom-nav-item.active {
   color: var(--color-primary);
 }
@@ -3031,4 +3037,3 @@ body::after {
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }
-

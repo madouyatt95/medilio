@@ -182,7 +182,7 @@ function BottomNav() {
 
   if (user?.role === 'establishment') {
     return (
-      <nav className="bottom-nav">
+      <nav className="bottom-nav bottom-nav-compact">
         <Link to="/etab/dashboard" className={`bottom-nav-item ${isActive('/etab/dashboard') ? 'active' : ''}`}>
           <Home size={20} className="bottom-nav-icon" />
           <span>Accueil</span>

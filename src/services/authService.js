@@ -246,6 +246,15 @@ export const authService = {
   },
 
   async toggleUserStatus(userId) {
+    if (isDemoMode) {
+      const users = storageService.getUsers();
+      const index = users.findIndex(user => user.id === userId);
+      if (index === -1) throw new Error('Profil introuvable.');
+      users[index] = { ...users[index], disabled: !users[index].disabled };
+      storageService.setUsers(users);
+      return users[index];
+    }
+
     const profile = await this.getProfile(userId);
     if (!profile) throw new Error('Profil introuvable.');
     const { error } = await supabase.from('profiles').update({ disabled: !profile.disabled }).eq('id', userId);
@@ -261,6 +270,18 @@ export const authService = {
     const verified = profile.role === 'professional'
       ? profile.professionalInfo?.verified
       : profile.establishmentInfo?.verified;
+
+    if (isDemoMode) {
+      const users = storageService.getUsers();
+      const index = users.findIndex(user => user.id === userId);
+      if (index === -1) throw new Error('Profil introuvable.');
+      users[index] = profile.role === 'professional'
+        ? { ...users[index], professionalInfo: { ...users[index].professionalInfo, verified: !verified } }
+        : { ...users[index], establishmentInfo: { ...users[index].establishmentInfo, verified: !verified } };
+      storageService.setUsers(users);
+      return users[index];
+    }
+
     const { error } = await supabase.from('profiles').update({ verified: !verified }).eq('id', userId);
     if (error) throw new Error(error.message);
     return this.getProfile(userId);

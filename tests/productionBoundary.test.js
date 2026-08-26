@@ -9,6 +9,9 @@ const applicationSource = sourceFiles
   .join('\n');
 const runtimeSource = readFileSync('src/config/runtime.js', 'utf8');
 const entrySource = readFileSync('src/main.jsx', 'utf8');
+const appSource = readFileSync('src/App.jsx', 'utf8');
+const stylesSource = readFileSync('src/index.css', 'utf8');
+const adminSource = readFileSync('src/pages/admin/AdminDashboard.jsx', 'utf8');
 const emailFunctionSource = readFileSync('supabase/functions/send-email/index.ts', 'utf8');
 
 describe('production boundary', () => {
@@ -42,5 +45,23 @@ describe('production boundary', () => {
       .toBeLessThan(emailFunctionSource.indexOf("request.method === 'OPTIONS'"));
     expect(emailFunctionSource.indexOf("Authentification requise."))
       .toBeLessThan(emailFunctionSource.indexOf("Service email non configuré."));
+  });
+
+  it('keeps all six establishment navigation items reachable on mobile', () => {
+    expect(appSource).toContain('bottom-nav bottom-nav-compact');
+    expect(stylesSource).toContain('.bottom-nav-compact .bottom-nav-item');
+    expect(stylesSource).toContain('flex: 1 1 0');
+    expect(stylesSource).toContain('min-width: 0');
+  });
+
+  it('does not present fictional admin activity or a non-existent super-admin role', () => {
+    expect(adminSource).not.toContain('Super administrateur');
+    expect(adminSource).not.toContain('Maintenance programmée');
+    expect(adminSource).not.toContain('Notre équipe support est disponible 7j/7.');
+    expect(adminSource).not.toContain('Paris 15e');
+    expect(adminSource).toContain('recentMissions.map');
+    expect(adminSource).toContain('Les données d\'administration n\'ont pas pu être chargées.');
+    expect(adminSource).toContain("['professional', 'establishment'].includes(u.role)");
+    expect(adminSource).toContain('pendingVerifications.map');
   });
 });
