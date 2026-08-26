@@ -64,4 +64,10 @@ describe('production boundary', () => {
     expect(adminSource).toContain("['professional', 'establishment'].includes(u.role)");
     expect(adminSource).toContain('pendingVerifications.map');
   });
+
+  it('lets an administrator promote an existing active account', () => {
+    expect(adminSource).toContain('Ajouter comme administrateur');
+    expect(adminSource).toContain('authService.promoteToAdmin(candidate.id)');
+    expect(adminSource).toContain("account.role !== 'admin' && !account.disabled");
+  });
 });

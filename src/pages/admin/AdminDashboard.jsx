@@ -51,6 +51,9 @@ export default function AdminDashboard() {
   const [timeframe, setTimeframe] = useState('30_days');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [adminCandidateId, setAdminCandidateId] = useState('');
+  const [adminActionStatus, setAdminActionStatus] = useState({ type: '', message: '' });
+  const [isPromotingAdmin, setIsPromotingAdmin] = useState(false);
 
   // Responsiveness states
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -118,6 +121,8 @@ export default function AdminDashboard() {
   const verifiableAccounts = users.filter(account => ['professional', 'establishment'].includes(account.role));
   const verifiedAccounts = verifiableAccounts.filter(isAccountVerified);
   const pendingVerifications = verifiableAccounts.filter(account => !isAccountVerified(account));
+  const adminAccounts = users.filter(account => account.role === 'admin');
+  const adminCandidates = users.filter(account => account.role !== 'admin' && !account.disabled);
   const adminDisplayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || 'Administrateur Medilio';
   const adminInitials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'AD';
   
@@ -227,6 +232,33 @@ export default function AdminDashboard() {
       setLoadError("Le statut de vérification n'a pas pu être modifié.");
     } finally {
       setShowVerifyModal(null);
+    }
+  };
+
+  const handlePromoteAdmin = async () => {
+    const candidate = adminCandidates.find(account => account.id === adminCandidateId);
+    if (!candidate) {
+      setAdminActionStatus({ type: 'error', message: 'Sélectionnez un compte actif.' });
+      return;
+    }
+
+    const candidateName = [candidate.firstName, candidate.lastName].filter(Boolean).join(' ') || candidate.email;
+    if (!window.confirm(`Accorder les droits administrateur à ${candidateName} ? Ce compte deviendra uniquement administrateur.`)) {
+      return;
+    }
+
+    setIsPromotingAdmin(true);
+    setAdminActionStatus({ type: '', message: '' });
+    try {
+      await authService.promoteToAdmin(candidate.id);
+      setUsers(await authService.getAllUsers());
+      setAdminCandidateId('');
+      setAdminActionStatus({ type: 'success', message: `${candidateName} est maintenant administrateur.` });
+    } catch (err) {
+      console.error('Error promoting administrator:', err);
+      setAdminActionStatus({ type: 'error', message: err.message || "Les droits administrateur n'ont pas pu être accordés." });
+    } finally {
+      setIsPromotingAdmin(false);
     }
   };
 
@@ -745,14 +777,17 @@ export default function AdminDashboard() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {users.slice(0, 5).map((usr, i) => {
-                      const isPro = usr.role === 'professional';
-                      const roleLabel = isPro ? 'Intervenant' : 'Patient';
-                      const color = isPro ? '#ECFDF5' : '#EFF6FF';
-                      const textCol = isPro ? '#10B981' : '#3B82F6';
+                      const roleStyle = {
+                        admin: { background: '#FEF3C7', color: '#B45309' },
+                        professional: { background: '#ECFDF5', color: '#10B981' },
+                        establishment: { background: '#F3E8FF', color: '#7E22CE' },
+                        patient: { background: '#EFF6FF', color: '#3B82F6' },
+                      }[usr.role] || { background: '#F1F5F9', color: '#475569' };
+                      const roleLabel = ROLE_LABELS[usr.role] || usr.role;
                       return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: textCol, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: roleStyle.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
                             {usr.firstName?.[0]}{usr.lastName?.[0]}
                           </div>
                           <div>
@@ -761,7 +796,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <span style={{
-                          background: color, color: textCol, fontSize: '10px',
+                          background: roleStyle.background, color: roleStyle.color, fontSize: '10px',
                           fontWeight: 700, padding: '3px 8px', borderRadius: '6px'
                         }}>
                           {roleLabel}
@@ -1253,12 +1288,68 @@ export default function AdminDashboard() {
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Sécurité et accès</h3>
                 <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Medilio dispose actuellement d'un seul niveau administrateur. Les comptes, vérifications et désactivations se gèrent depuis les écrans dédiés.
+                  Medilio dispose d'un seul niveau administrateur. Les comptes, vérifications et désactivations se gèrent depuis les écrans dédiés.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('users')}>Gérer les utilisateurs</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('verification')}>Gérer les vérifications</button>
                 </div>
+              </div>
+
+              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px 0' }}>Administrateurs ({adminAccounts.length})</h3>
+                <p style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+                  Pour ajouter un administrateur, la personne doit d'abord créer un compte Medilio. La promotion remplace son rôle actuel et lui donne accès uniquement à l'administration.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                  {adminAccounts.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#64748B' }}>Aucun administrateur enregistré.</div>
+                  ) : adminAccounts.map(account => (
+                    <div key={account.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '10px 12px', background: '#F8FAFC', borderRadius: '10px', fontSize: '12px' }}>
+                      <span style={{ fontWeight: 700 }}>{[account.firstName, account.lastName].filter(Boolean).join(' ') || 'Administrateur'}</span>
+                      <span style={{ color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis' }}>{account.email}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <label htmlFor="admin-candidate" style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>
+                  Promouvoir un compte actif
+                </label>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px' }}>
+                  <select
+                    id="admin-candidate"
+                    value={adminCandidateId}
+                    onChange={event => {
+                      setAdminCandidateId(event.target.value);
+                      setAdminActionStatus({ type: '', message: '' });
+                    }}
+                    disabled={adminCandidates.length === 0 || isPromotingAdmin}
+                    style={{ flex: 1, minHeight: '40px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '0 10px', background: 'white', color: '#0F172A' }}
+                  >
+                    <option value="">{adminCandidates.length === 0 ? 'Aucun compte actif disponible' : 'Sélectionner un utilisateur'}</option>
+                    {adminCandidates.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {[account.firstName, account.lastName].filter(Boolean).join(' ') || account.email} — {ROLE_LABELS[account.role] || account.role}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handlePromoteAdmin}
+                    disabled={!adminCandidateId || isPromotingAdmin}
+                    style={{ minHeight: '40px' }}
+                  >
+                    <Shield size={14} /> {isPromotingAdmin ? 'Ajout en cours…' : 'Ajouter comme administrateur'}
+                  </button>
+                </div>
+
+                {adminActionStatus.message && (
+                  <div role="status" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', color: adminActionStatus.type === 'success' ? '#166534' : '#B91C1C', background: adminActionStatus.type === 'success' ? '#DCFCE7' : '#FEE2E2' }}>
+                    {adminActionStatus.message}
+                  </div>
+                )}
               </div>
             </div>
           )}

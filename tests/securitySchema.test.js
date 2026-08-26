@@ -9,6 +9,10 @@ const surfaceMigration = readFileSync(
   new URL('../supabase/migrations/20260825202000_reduce_public_surface.sql', import.meta.url),
   'utf8',
 ).toLowerCase();
+const adminRoleMigration = readFileSync(
+  new URL('../supabase/migrations/20260826203000_admin_role_management.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
 
 describe('Supabase security baseline', () => {
   it('enables RLS for every application table', () => {
@@ -67,5 +71,20 @@ describe('Supabase security baseline', () => {
   it('prevents anonymous listing of all avatar objects', () => {
     expect(migration).not.toContain('create policy avatars_public_read');
     expect(surfaceMigration).toContain('drop policy if exists avatars_public_read on storage.objects');
+  });
+
+  it('limits administrator promotion to authenticated administrators', () => {
+    expect(adminRoleMigration).toContain('create or replace function public.promote_user_to_admin(p_user_id uuid)');
+    expect(adminRoleMigration).toContain('auth.uid() is null or not public.is_admin()');
+    expect(adminRoleMigration).toContain('revoke all on function public.promote_user_to_admin(uuid) from public, anon');
+    expect(adminRoleMigration).toContain('grant execute on function public.promote_user_to_admin(uuid) to authenticated');
+  });
+
+  it('records administrator promotions in a protected audit table', () => {
+    expect(adminRoleMigration).toContain('create table if not exists public.admin_role_audit');
+    expect(adminRoleMigration).toContain('alter table public.admin_role_audit enable row level security');
+    expect(adminRoleMigration).toContain('insert into public.admin_role_audit (actor_id, target_id, previous_role)');
+    expect(adminRoleMigration).toContain('using (public.is_admin())');
+    expect(adminRoleMigration).toContain('revoke all on table public.admin_role_audit from anon, authenticated');
   });
 });

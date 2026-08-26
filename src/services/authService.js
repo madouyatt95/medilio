@@ -287,6 +287,24 @@ export const authService = {
     return this.getProfile(userId);
   },
 
+  async promoteToAdmin(userId) {
+    if (isDemoMode) {
+      const users = storageService.getUsers();
+      const index = users.findIndex(user => user.id === userId);
+      if (index === -1) throw new Error('Profil introuvable.');
+      if (users[index].disabled) throw new Error('Un compte désactivé ne peut pas devenir administrateur.');
+      if (users[index].role === 'admin') return users[index];
+      users[index] = { ...users[index], role: 'admin' };
+      storageService.setUsers(users);
+      return users[index];
+    }
+
+    assertBackendConfigured();
+    const { error } = await supabase.rpc('promote_user_to_admin', { p_user_id: userId });
+    if (error) throw new Error(error.message);
+    return this.getProfile(userId);
+  },
+
   onAuthStateChange(callback) {
     if (isDemoMode) return { data: { subscription: { unsubscribe() {} } } };
     return supabase.auth.onAuthStateChange(callback);
