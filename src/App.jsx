@@ -79,7 +79,7 @@ function Header() {
   const navigate = useNavigate();
 
   // Don't show header on landing, login, register
-  const hiddenPaths = ['/', '/login', '/register', '/confidentialite', '/mentions-legales'];
+  const hiddenPaths = ['/', '/login', '/register', '/set-password', '/auth/callback', '/confidentialite', '/mentions-legales'];
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('create-mission')) return null;
 
@@ -172,7 +172,7 @@ function BottomNav() {
   const location = useLocation();
   const { notifications } = useNotifications();
 
-  const hiddenPaths = ['/', '/login', '/register'];
+  const hiddenPaths = ['/', '/login', '/register', '/set-password', '/auth/callback'];
   if (hiddenPaths.includes(location.pathname)) return null;
   if (location.pathname.includes('/chat/')) return null;
   if (user?.role === 'admin') return null;
@@ -327,6 +327,8 @@ function ToastContainer() {
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 const CreateMission = lazy(() => import('./pages/patient/CreateMission'));
 const PatientMissionDetail = lazy(() => import('./pages/patient/MissionDetail'));
@@ -387,6 +389,8 @@ function AppContent() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/confidentialite" element={<LegalPage />} />
         <Route path="/mentions-legales" element={<LegalPage />} />
 

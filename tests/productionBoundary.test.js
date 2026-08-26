@@ -12,6 +12,8 @@ const entrySource = readFileSync('src/main.jsx', 'utf8');
 const appSource = readFileSync('src/App.jsx', 'utf8');
 const stylesSource = readFileSync('src/index.css', 'utf8');
 const adminSource = readFileSync('src/pages/admin/AdminDashboard.jsx', 'utf8');
+const authServiceSource = readFileSync('src/services/authService.js', 'utf8');
+const setPasswordSource = readFileSync('src/pages/SetPasswordPage.jsx', 'utf8');
 const emailFunctionSource = readFileSync('supabase/functions/send-email/index.ts', 'utf8');
 
 describe('production boundary', () => {
@@ -69,5 +71,14 @@ describe('production boundary', () => {
     expect(adminSource).toContain('Ajouter comme administrateur');
     expect(adminSource).toContain('authService.promoteToAdmin(candidate.id)');
     expect(adminSource).toContain("account.role !== 'admin' && !account.disabled");
+  });
+
+  it('provides safe public authentication return paths', () => {
+    expect(appSource).toContain('<Route path="/set-password"');
+    expect(appSource).toContain('<Route path="/auth/callback"');
+    expect(authServiceSource).toContain("emailRedirectTo: new URL('/auth/callback', window.location.origin).toString()");
+    expect(authServiceSource).toContain('supabase.auth.updateUser({ password })');
+    expect(setPasswordSource).toContain('password.length < 12');
+    expect(setPasswordSource).toContain("navigate(dashboardPath(user.role), { replace: true })");
   });
 });

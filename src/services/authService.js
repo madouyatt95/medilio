@@ -90,6 +90,7 @@ export const authService = {
       email: form.email,
       password: form.password,
       options: {
+        emailRedirectTo: new URL('/auth/callback', window.location.origin).toString(),
         data: {
           first_name: form.firstName,
           last_name: form.lastName,
@@ -145,6 +146,13 @@ export const authService = {
   async logout() {
     storageService.clearCurrentUser();
     if (!isDemoMode) await supabase.auth.signOut({ scope: 'local' });
+  },
+
+  async updatePassword(password) {
+    if (isDemoMode) throw new Error('La modification du mot de passe est indisponible en démonstration.');
+    assertBackendConfigured();
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
   },
 
   async getCurrentSession() {
